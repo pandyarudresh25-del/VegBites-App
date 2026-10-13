@@ -1,184 +1,135 @@
-import React, { useEffect } from 'react';
-import { View, StyleSheet, SafeAreaView, TouchableOpacity, Image } from 'react-native';
-import { useRouter } from 'expo-router';
-import Animated, { FadeInDown, ZoomIn, useSharedValue, useAnimatedStyle, withSpring, withDelay, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
+import React, { useEffect, useMemo } from 'react';
+import { View, StyleSheet } from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import Animated, { FadeIn, FadeInDown, useAnimatedStyle, useSharedValue, withDelay, withSpring } from 'react-native-reanimated';
+import { Check, Package } from 'lucide-react-native';
 import { AppText } from '../../components/AppText';
 import { AppButton } from '../../components/AppButton';
-import { AppPressable } from '../../components/AppPressable';
+import { AppScreen, EmptyState } from '../../components/AppScreen';
 import { Theme } from '../../theme';
-import { Check, Clock, FileText } from 'lucide-react-native';
 import { useLanguage } from '../../context/LanguageContext';
+import { useAppStore } from '../../store/AppStore';
 
+/**
+ * Order confirmation. Previously a static "success" screen that was not tied
+ * to any order; it now resolves the order created by the payment step so the
+ * id, total and ETA shown are real.
+ */
 export default function OrderConfirmationScreen() {
+  const { id } = useLocalSearchParams<{ id?: string }>();
   const router = useRouter();
-  const { t } = useLanguage();
+  const { t, currency } = useLanguage();
+  const { orders } = useAppStore();
 
-  const pulseScale = useSharedValue(1);
+  const order = useMemo(
+    () => (id ? orders.find((o) => o.id === id) : orders[0]),
+    [orders, id],
+  );
 
+  const scale = useSharedValue(0.6);
   useEffect(() => {
-    pulseScale.value = withSequence(
-      withTiming(1.1, { duration: 800 }),
-      withTiming(1, { duration: 800 })
-    );
-  }, []);
+    scale.value = withDelay(120, withSpring(1, { damping: 11, stiffness: 160 }));
+  }, [scale]);
+  const badgeStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
 
-  const pulseStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: pulseScale.value }],
-  }));
+  if (!order) {
+    return (
+      <AppScreen>
+        <EmptyState
+          icon={<Package size={28} color={Theme.colors.primary} />}
+          title={t('flow.orders.noActive')}
+          body={t('flow.orders.noActiveHint')}
+          action={<AppButton title={t('flow.notFound.cta')} onPress={() => router.replace('/home')} />}
+        />
+      </AppScreen>
+    );
+  }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <AppScreen>
       <View style={styles.content}>
-        
-        <View style={styles.animationContainer}>
-          <Animated.View style={[styles.pulseRing, pulseStyle]} />
-          <Animated.View entering={ZoomIn.duration(800).springify()} style={styles.iconContainer}>
-            <Check size={48} color="#fff" strokeWidth={3} />
-          </Animated.View>
-        </View>
-        
-        <Animated.View entering={FadeInDown.delay(300).duration(600).springify()} style={styles.textContainer}>
-          <AppText variant="h1" align="center" style={styles.title}>{t('orderConfirmation.title')}</AppText>
-          <AppText variant="body" align="center" color={Theme.colors.textSecondary} style={styles.subtitle}>
-            {t('orderConfirmation.subtitle')}
+        <Animated.View style={[styles.badge, badgeStyle]}>
+          <Check size={38} color={Theme.colors.surface} strokeWidth={3} />
+        </Animated.View>
+
+        <Animated.View entering={FadeInDown.delay(200).duration(Theme.motion.base)} style={{ alignItems: 'center' }}>
+          <AppText variant="h1" align="center">
+            {t('orderConfirmation.title')}
+          </AppText>
+          <AppText variant="body" align="center" style={{ marginTop: Theme.spacing.sm }}>
+            {t('checkout.successBody')}
           </AppText>
         </Animated.View>
 
-        <Animated.View entering={FadeInDown.delay(450).duration(600).springify()} style={styles.detailsCard}>
-           <View style={styles.detailRow}>
-             <View style={styles.detailLeft}>
-               <FileText size={20} color={Theme.colors.primary} />
-               <AppText variant="body" color={Theme.colors.textSecondary} style={{ marginLeft: 8 }}>{t('orderConfirmation.orderId')}</AppText>
-             </View>
-             <AppText variant="h3">#123489</AppText>
-           </View>
-           
-           <View style={styles.divider} />
-           
-           <View style={styles.detailRow}>
-             <View style={styles.detailLeft}>
-               <Clock size={20} color={Theme.colors.success} />
-               <AppText variant="body" color={Theme.colors.textSecondary} style={{ marginLeft: 8 }}>{t('orderConfirmation.estimatedDelivery')}</AppText>
-             </View>
-             <AppText variant="h3">30-45 mins</AppText>
-           </View>
+        <Animated.View entering={FadeInDown.delay(300).duration(Theme.motion.base)} style={styles.card}>
+          <Row label={t('orderConfirmation.orderId')} value={`#${order.id}`} />
+          <View style={styles.divider} />
+          <Row label={t('orderConfirmation.estimatedDelivery')} value={t('flow.checkout.nowTime')} />
+          <View style={styles.divider} />
+          <Row label={t('flow.common.total')} value={currency(order.bill.total)} emphasize />
+          {order.paymentMethod === 'cod' ? (
+            <>
+              <View style={styles.divider} />
+              <AppText variant="caption" color={Theme.colors.primary}>
+                {t('flow.orders.payCod', { amount: currency(order.bill.total) })}
+              </AppText>
+            </>
+          ) : null}
         </Animated.View>
 
+        <Animated.View entering={FadeIn.delay(400).duration(Theme.motion.base)} style={styles.actions}>
+          <AppButton
+            title={t('checkout.viewOrder')}
+            onPress={() => router.replace(`/tracking/${order.id}`)}
+          />
+          <AppButton
+            title={t('orderConfirmation.backToHome')}
+            variant="outline"
+            onPress={() => router.replace('/home')}
+          />
+        </Animated.View>
       </View>
-
-      <Animated.View entering={FadeInDown.delay(600).duration(600).springify()} style={styles.footer}>
-         <AppButton 
-           title={t('orderConfirmation.liveTracking')} 
-           onPress={() => router.push('/(customer)/tracking/123489')}
-           style={styles.trackButton}
-         />
-         <AppPressable 
-           style={styles.secondaryButton} 
-           scaleTo={0.97}
-           onPress={() => router.push('/(customer)/home')}
-         >
-           <AppText variant="button" color={Theme.colors.textSecondary}>{t('orderConfirmation.backToHome')}</AppText>
-         </AppPressable>
-      </Animated.View>
-    </SafeAreaView>
+    </AppScreen>
   );
 }
 
+const Row: React.FC<{ label: string; value: string; emphasize?: boolean }> = ({ label, value, emphasize }) => (
+  <View style={styles.row}>
+    <AppText variant="bodySmall">{label}</AppText>
+    <AppText variant={emphasize ? 'price' : 'bodySmall'} color={emphasize ? Theme.colors.primary : Theme.colors.text}>
+      {value}
+    </AppText>
+  </View>
+);
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Theme.colors.background,
-  },
   content: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: Theme.spacing.xl,
+    gap: Theme.spacing.xl,
+    paddingVertical: Theme.spacing.xxl,
   },
-  animationContainer: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: Theme.spacing.xxl,
-    width: 160,
-    height: 160,
-  },
-  pulseRing: {
-    position: 'absolute',
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    backgroundColor: Theme.colors.success + '20',
-  },
-  iconContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+  badge: {
+    width: 92,
+    height: 92,
+    borderRadius: 46,
     backgroundColor: Theme.colors.success,
+    alignItems: 'center',
     justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: Theme.colors.success,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    elevation: 8,
+    ...Theme.shadows.floating,
   },
-  textContainer: {
-    alignItems: 'center',
-    marginBottom: Theme.spacing.xxl * 1.5,
-  },
-  title: {
-    marginBottom: Theme.spacing.sm,
-    fontSize: 28,
-  },
-  subtitle: {
-    maxWidth: '85%',
-    lineHeight: 24,
-  },
-  detailsCard: {
-    width: '100%',
+  card: {
+    alignSelf: 'stretch',
     backgroundColor: Theme.colors.surface,
-    borderRadius: 24,
-    padding: Theme.spacing.xl,
-    borderWidth: 1.5,
+    borderRadius: Theme.borderRadius.xl,
+    padding: Theme.spacing.lg,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: Theme.colors.border,
-    shadowColor: Theme.colors.text,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.04,
-    shadowRadius: 16,
-    elevation: 4,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: Theme.spacing.xs,
-  },
-  detailLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  divider: {
-    height: 1,
-    backgroundColor: Theme.colors.border,
-    marginVertical: Theme.spacing.lg,
-  },
-  footer: {
-    padding: Theme.spacing.xl,
-    paddingBottom: Theme.spacing.xxl,
+    ...Theme.shadows.soft,
     gap: Theme.spacing.md,
   },
-  trackButton: {
-    height: 56,
-    shadowColor: Theme.colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  secondaryButton: {
-    alignItems: 'center',
-    paddingVertical: Theme.spacing.lg,
-    backgroundColor: Theme.colors.surfaceSecondary,
-    borderRadius: 16,
-  },
+  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: Theme.colors.divider },
+  actions: { alignSelf: 'stretch', gap: Theme.spacing.md },
 });

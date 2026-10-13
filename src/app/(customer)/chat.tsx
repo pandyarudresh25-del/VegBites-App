@@ -93,7 +93,7 @@ export default function ChatScreen() {
             >
               <AppText 
                 variant="body" 
-                color={msg.isUser ? '#FFFFFF' : Theme.colors.text}
+                color={msg.isUser ? Theme.colors.surface : Theme.colors.text}
               >
                 {msg.text}
               </AppText>

@@ -38,7 +38,7 @@ export default function SubscriptionPlansScreen() {
             <Animated.View key={plan.id} entering={FadeInDown.delay((index + 1) * 100).duration(600).springify()}>
               <AppPressable 
                 scaleTo={0.98}
-                onPress={() => router.push(`/customer/tiffins/${id}/thali` as any)}
+                onPress={() => router.push(`/tiffins/${id}/thali` as any)}
               >
                 <AppCard 
                   style={[

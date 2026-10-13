@@ -27,7 +27,7 @@ export default function MySubscriptionScreen() {
         <Animated.View entering={FadeInDown.duration(600).springify()}>
           <View style={styles.subCard}>
              <LinearGradient
-               colors={['#FFF8F0', '#FFF']}
+               colors={[Theme.colors.background, Theme.colors.surface]}
                style={StyleSheet.absoluteFill}
              />
              <View style={styles.subHeader}>
@@ -95,7 +95,7 @@ export default function MySubscriptionScreen() {
                   ]}>
                     <AppText 
                       variant="caption" 
-                      color={isToday ? '#fff' : (isActive ? Theme.colors.primary : Theme.colors.textMuted)}
+                      color={isToday ? Theme.colors.surface : (isActive ? Theme.colors.primary : Theme.colors.textMuted)}
                       style={{ fontWeight: isToday ? '800' : '500' }}
                     >
                       {day}
@@ -112,7 +112,7 @@ export default function MySubscriptionScreen() {
           <View style={styles.manageCard}>
              <AppPressable style={[styles.manageBtn, styles.borderBottom]}>
                <View style={styles.manageBtnLeft}>
-                 <View style={[styles.manageIconBg, { backgroundColor: '#FEF3C7' }]}>
+                 <View style={[styles.manageIconBg, { backgroundColor: Theme.colors.surfaceSecondary }]}>
                    <PauseCircle size={20} color="#F59E0B" />
                  </View>
                  <AppText variant="h3">Pause Subscription</AppText>
@@ -122,7 +122,7 @@ export default function MySubscriptionScreen() {
              
              <AppPressable style={[styles.manageBtn, styles.borderBottom]}>
                <View style={styles.manageBtnLeft}>
-                 <View style={[styles.manageIconBg, { backgroundColor: '#E0F2FE' }]}>
+                 <View style={[styles.manageIconBg, { backgroundColor: Theme.colors.primarySoft }]}>
                    <RefreshCw size={20} color="#0284C7" />
                  </View>
                  <AppText variant="h3">Change Plan</AppText>
@@ -132,7 +132,7 @@ export default function MySubscriptionScreen() {
              
              <AppPressable style={styles.manageBtn}>
                <View style={styles.manageBtnLeft}>
-                 <View style={[styles.manageIconBg, { backgroundColor: '#FEE2E2' }]}>
+                 <View style={[styles.manageIconBg, { backgroundColor: Theme.colors.primarySoft }]}>
                    <XCircle size={20} color={Theme.colors.error} />
                  </View>
                  <AppText variant="h3" color={Theme.colors.error}>Cancel Subscription</AppText>
@@ -206,10 +206,10 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#FFF',
+    backgroundColor: Theme.colors.surface,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#F59E0B',
+    shadowColor: Theme.colors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 8,

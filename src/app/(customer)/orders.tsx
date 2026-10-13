@@ -1,207 +1,283 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, Image } from 'react-native';
+import { View, StyleSheet, Pressable, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import Animated, { FadeInDown } from 'react-native-reanimated';
+import { Clock, Package, RefreshCw, Star, X } from 'lucide-react-native';
 import { AppText } from '../../components/AppText';
+import { AppButton } from '../../components/AppButton';
+import { AppScrollScreen, EmptyState } from '../../components/AppScreen';
 import { Theme } from '../../theme';
-import { Package, Clock, RefreshCw, Star } from 'lucide-react-native';
 import { useLanguage } from '../../context/LanguageContext';
+import { useAppStore } from '../../store/AppStore';
+import { STATUS_KEY, type Order } from '../../domain/types';
 
-const ACTIVE_ORDERS = [
-  { id: '1234', date: 'Today, 12:30 PM', items: '2x Gujarati Thali, 1x Buttermilk', total: '₹260', status: 'On the Way' },
-];
-
-const PAST_ORDERS = [
-  { id: '1233', date: 'Yesterday, 08:00 PM', items: '1x Punjabi Thali', total: '₹150', status: 'Delivered' },
-  { id: '1228', date: '21 Aug, 01:15 PM', items: '2x Gujarati Thali', total: '₹240', status: 'Delivered' },
-];
-
+/**
+ * Orders. Now driven by the store: tracking, reorder and cancel all mutate
+ * real state (previously these were hardcoded arrays and the Reorder button
+ * had no onPress at all).
+ */
 export default function OrdersScreen() {
   const router = useRouter();
-  const { t } = useLanguage();
-  const [activeTab, setActiveTab] = useState<'active' | 'past'>('active');
+  const { t, language, currency, date } = useLanguage();
+  const { activeOrders, pastOrders, reorder, cancelOrder } = useAppStore();
+
+  const [tab, setTab] = useState<'active' | 'past'>('active');
+  const [toast, setToast] = useState<string | null>(null);
+  const [confirmingCancel, setConfirmingCancel] = useState<string | null>(null);
+
+  const label = (en: string, gu: string) => (language === 'gu' ? gu : en);
+  const orders = tab === 'active' ? activeOrders : pastOrders;
+
+  const showToast = (message: string) => {
+    setToast(message);
+    setTimeout(() => setToast(null), 2200);
+  };
+
+  const renderOrder = (order: Order, index: number) => {
+    const isActive = order.status !== 'delivered' && order.status !== 'cancelled';
+    const lineSummary = order.lines.map((l) => `${l.quantity}× ${label(l.name, l.nameGu)}`).join(', ');
+
+    return (
+      <Animated.View key={order.id} entering={FadeInDown.delay(index * 60).duration(Theme.motion.base)}>
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <View style={{ flex: 1 }}>
+              <AppText variant="h3">{t('orders.order')} #{order.id}</AppText>
+              <AppText variant="caption">
+                {date(order.createdAt)} · {t('flow.cart.itemsCount', { count: order.lines.length })}
+              </AppText>
+            </View>
+            <View style={[styles.statusPill, !isActive && styles.statusPillMuted]}>
+              <AppText
+                variant="caption"
+                color={order.status === 'cancelled' ? Theme.colors.error : isActive ? Theme.colors.primary : Theme.colors.success}
+              >
+                {t(STATUS_KEY[order.status])}
+              </AppText>
+            </View>
+          </View>
+
+          <View style={styles.divider} />
+
+          <View style={styles.restaurantRow}>
+            {order.kitchenImage ? (
+              <Image source={order.kitchenImage} style={styles.kitchenImage} />
+            ) : null}
+            <View style={{ flex: 1 }}>
+              <AppText variant="bodySmall" numberOfLines={1}>
+                {label(order.restaurantName, order.restaurantNameGu)}
+              </AppText>
+              <AppText variant="caption" numberOfLines={2}>
+                {lineSummary}
+              </AppText>
+            </View>
+          </View>
+
+          <View style={styles.footerRow}>
+            <AppText variant="h3">{currency(order.bill.total)}</AppText>
+            {isActive ? (
+              <Pressable
+                onPress={() => router.push(`/tracking/${order.id}`)}
+                style={styles.primaryAction}
+                accessibilityRole="button"
+              >
+                <Clock size={14} color={Theme.colors.surface} />
+                <AppText variant="label" color={Theme.colors.surface}>
+                  {t('flow.orders.track')}
+                </AppText>
+              </Pressable>
+            ) : (
+              <View style={styles.pastActions}>
+                <Pressable
+                  onPress={() => {
+                    reorder(order.id);
+                    showToast(t('flow.orders.reordered'));
+                  }}
+                  style={styles.ghostAction}
+                  accessibilityRole="button"
+                >
+                  <RefreshCw size={13} color={Theme.colors.text} />
+                  <AppText variant="caption">{t('flow.orders.orderAgain')}</AppText>
+                </Pressable>
+                <Pressable
+                  onPress={() => router.push(`/reviews?orderId=${order.id}`)}
+                  style={styles.ghostAction}
+                  accessibilityRole="button"
+                >
+                  <Star size={13} color={Theme.colors.primary} />
+                  <AppText variant="caption" color={Theme.colors.primary}>
+                    {order.reviewed ? t('flow.orders.rated') : t('flow.orders.rateOrder')}
+                  </AppText>
+                </Pressable>
+              </View>
+            )}
+          </View>
+
+          {/* cancel is only offered while the kitchen has not started cooking */}
+          {isActive && (order.status === 'placed' || order.status === 'confirmed') ? (
+            confirmingCancel === order.id ? (
+              <View style={styles.confirmRow}>
+                <AppText variant="caption" style={{ flex: 1 }}>
+                  {t('flow.orders.cancelConfirm')}
+                </AppText>
+                <Pressable
+                  onPress={() => {
+                    cancelOrder(order.id);
+                    setConfirmingCancel(null);
+                    showToast(t('flow.orders.cancelled'));
+                  }}
+                >
+                  <AppText variant="label" color={Theme.colors.error}>
+                    {t('common.cancel')}
+                  </AppText>
+                </Pressable>
+                <Pressable onPress={() => setConfirmingCancel(null)} hitSlop={8}>
+                  <X size={16} color={Theme.colors.textSecondary} />
+                </Pressable>
+              </View>
+            ) : (
+              <Pressable onPress={() => setConfirmingCancel(order.id)} style={styles.cancelLink}>
+                <AppText variant="caption" color={Theme.colors.error}>
+                  {t('flow.orders.cancelOrder')}
+                </AppText>
+              </Pressable>
+            )
+          ) : null}
+        </View>
+      </Animated.View>
+    );
+  };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <AppText variant="h2" style={styles.headerTitle}>{t('orders.title')}</AppText>
-      </View>
+    <View style={{ flex: 1, backgroundColor: Theme.colors.background }}>
+      {toast ? (
+        <Animated.View entering={FadeInDown.duration(Theme.motion.fast)} style={styles.toast}>
+          <AppText variant="bodySmall" color={Theme.colors.surface}>
+            {toast}
+          </AppText>
+        </Animated.View>
+      ) : null}
 
-      <View style={styles.tabContainer}>
-        <TouchableOpacity 
-          style={[styles.tab, activeTab === 'active' && styles.activeTab]}
-          onPress={() => setActiveTab('active')}
-          activeOpacity={0.8}
-        >
-          <AppText variant="h3" color={activeTab === 'active' ? '#fff' : Theme.colors.textMuted}>{t('orders.activeOrders')}</AppText>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={[styles.tab, activeTab === 'past' && styles.activeTab]}
-          onPress={() => setActiveTab('past')}
-          activeOpacity={0.8}
-        >
-          <AppText variant="h3" color={activeTab === 'past' ? '#fff' : Theme.colors.textMuted}>{t('orders.pastOrders')}</AppText>
-        </TouchableOpacity>
-      </View>
+      <AppScrollScreen>
+        <AppText variant="h1" style={{ marginTop: Theme.spacing.md }}>
+          {t('orders.title')}
+        </AppText>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-        
-        {activeTab === 'active' && ACTIVE_ORDERS.map((order, index) => (
-          <Animated.View key={order.id} entering={FadeInDown.delay(index * 100).springify()}>
-            <View style={styles.orderCard}>
-               <View style={styles.orderHeader}>
-                 <View>
-                   <AppText variant="h3">{t('orders.order')} #{order.id}</AppText>
-                   <AppText variant="caption" color={Theme.colors.textMuted}>{order.date}</AppText>
-                 </View>
-                 <View style={styles.statusPill}>
-                   <AppText variant="caption" color={Theme.colors.primary} style={{fontWeight: 'bold'}}>{order.status}</AppText>
-                 </View>
-               </View>
-               <View style={styles.divider} />
-               <AppText variant="bodySmall" color={Theme.colors.textSecondary} style={{marginBottom: 8}}>{order.items}</AppText>
-               <AppText variant="h3" style={{marginBottom: Theme.spacing.lg}}>{order.total}</AppText>
-               
-               <TouchableOpacity 
-                 style={styles.trackButton}
-                 activeOpacity={0.7}
-                 onPress={() => router.push('/(customer)/tracking/1234')}
-               >
-                 <Clock size={16} color="#fff" style={{marginRight: 8}} />
-                 <AppText variant="button" color="#fff">{t('orders.trackOrder')}</AppText>
-               </TouchableOpacity>
-            </View>
-          </Animated.View>
-        ))}
+        <View style={styles.tabBar}>
+          {(['active', 'past'] as const).map((key) => {
+            const selected = tab === key;
+            return (
+              <Pressable
+                key={key}
+                onPress={() => setTab(key)}
+                style={[styles.tab, selected && styles.tabActive]}
+                accessibilityRole="tab"
+                accessibilityState={{ selected }}
+              >
+                <AppText variant="label" color={selected ? Theme.colors.surface : Theme.colors.textMuted}>
+                  {t(key === 'active' ? 'flow.orders.active' : 'flow.orders.past')}
+                </AppText>
+              </Pressable>
+            );
+          })}
+        </View>
 
-        {activeTab === 'past' && PAST_ORDERS.map((order, index) => (
-          <Animated.View key={order.id} entering={FadeInDown.delay(index * 100).springify()}>
-            <View style={styles.orderCard}>
-               <View style={styles.orderHeader}>
-                 <View>
-                   <AppText variant="h3">{t('orders.order')} #{order.id}</AppText>
-                   <AppText variant="caption" color={Theme.colors.textMuted}>{order.date}</AppText>
-                 </View>
-                 <AppText variant="caption" color={Theme.colors.success} style={{fontWeight: 'bold'}}>{order.status}</AppText>
-               </View>
-               <View style={styles.divider} />
-               <AppText variant="bodySmall" color={Theme.colors.textSecondary} style={{marginBottom: 8}}>{order.items}</AppText>
-               <AppText variant="h3" style={{marginBottom: Theme.spacing.lg}}>{order.total}</AppText>
-               
-               <View style={styles.pastActionRow}>
-                 <TouchableOpacity style={styles.reorderButton} activeOpacity={0.7}>
-                   <RefreshCw size={14} color={Theme.colors.text} style={{marginRight: 6}} />
-                   <AppText variant="bodySmall">{t('orders.reorder')}</AppText>
-                 </TouchableOpacity>
-                 <TouchableOpacity style={styles.rateButton} activeOpacity={0.7} onPress={() => router.push('/(customer)/reviews')}>
-                   <Star size={14} color={Theme.colors.primary} style={{marginRight: 6}} />
-                   <AppText variant="bodySmall" color={Theme.colors.primary}>{t('orders.rateOrder')}</AppText>
-                 </TouchableOpacity>
-               </View>
-            </View>
-          </Animated.View>
-        ))}
-
-      </ScrollView>
-    </SafeAreaView>
+        {orders.length === 0 ? (
+          <EmptyState
+            icon={<Package size={28} color={Theme.colors.primary} />}
+            title={tab === 'active' ? t('flow.orders.noActive') : t('flow.orders.noPast')}
+            body={tab === 'active' ? t('flow.orders.noActiveHint') : t('flow.orders.noPastHint')}
+            action={
+              <AppButton
+                title={t('flow.cart.browseRestaurants')}
+                variant="outline"
+                onPress={() => router.push('/restaurants')}
+              />
+            }
+          />
+        ) : (
+          <View style={{ gap: Theme.spacing.md }}>{orders.map(renderOrder)}</View>
+        )}
+      </AppScrollScreen>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Theme.colors.background,
+  card: {
+    backgroundColor: Theme.colors.surface,
+    borderRadius: Theme.borderRadius.xl,
+    padding: Theme.spacing.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Theme.colors.border,
+    ...Theme.shadows.soft,
   },
-  header: {
-    paddingHorizontal: Theme.spacing.xl,
-    paddingVertical: Theme.spacing.md,
-    marginTop: Theme.spacing.sm,
+  cardHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: Theme.spacing.md },
+  statusPill: {
+    backgroundColor: Theme.colors.primarySoft,
+    paddingHorizontal: Theme.spacing.sm,
+    paddingVertical: 3,
+    borderRadius: Theme.borderRadius.pill,
   },
-  headerTitle: {
-    fontSize: 24,
-  },
-  tabContainer: {
+  statusPillMuted: { backgroundColor: Theme.colors.successSoft },
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: Theme.colors.divider, marginVertical: Theme.spacing.md },
+  restaurantRow: { flexDirection: 'row', alignItems: 'center', gap: Theme.spacing.md },
+  kitchenImage: { width: 40, height: 40, borderRadius: Theme.borderRadius.sm },
+  footerRow: {
     flexDirection: 'row',
-    marginHorizontal: Theme.spacing.xl,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: Theme.spacing.lg,
+    gap: Theme.spacing.md,
+  },
+  primaryAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: Theme.colors.primary,
+    paddingHorizontal: Theme.spacing.lg,
+    height: 38,
+    borderRadius: Theme.borderRadius.pill,
+  },
+  pastActions: { flexDirection: 'row', gap: Theme.spacing.sm },
+  ghostAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    height: 36,
+    paddingHorizontal: Theme.spacing.md,
+    borderRadius: Theme.borderRadius.pill,
+    borderWidth: 1,
+    borderColor: Theme.colors.border,
+  },
+  confirmRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Theme.spacing.md,
+    marginTop: Theme.spacing.md,
+    backgroundColor: Theme.colors.primarySoft,
+    borderRadius: Theme.borderRadius.md,
+    padding: Theme.spacing.sm,
+  },
+  cancelLink: { marginTop: Theme.spacing.md, alignItems: 'center' },
+  tabBar: {
+    flexDirection: 'row',
     backgroundColor: Theme.colors.surface,
     borderRadius: Theme.borderRadius.pill,
     padding: 4,
-    marginBottom: Theme.spacing.lg,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: Theme.colors.border,
   },
-  tab: {
-    flex: 1,
-    paddingVertical: Theme.spacing.md,
-    alignItems: 'center',
-    borderRadius: Theme.borderRadius.pill,
-  },
-  activeTab: {
+  tab: { flex: 1, paddingVertical: Theme.spacing.sm + 2, alignItems: 'center', borderRadius: Theme.borderRadius.pill },
+  tabActive: { backgroundColor: Theme.colors.text },
+  toast: {
+    position: 'absolute',
+    top: Theme.spacing.xxl,
+    alignSelf: 'center',
     backgroundColor: Theme.colors.text,
-  },
-  content: {
-    paddingHorizontal: Theme.spacing.xl,
-    paddingBottom: Theme.spacing.xxl,
-    gap: Theme.spacing.lg,
-  },
-  orderCard: {
-    backgroundColor: Theme.colors.surface,
-    padding: Theme.spacing.lg,
-    borderRadius: Theme.borderRadius.xl,
-    borderWidth: 1,
-    borderColor: Theme.colors.border,
-    shadowColor: Theme.colors.text,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.04,
-    shadowRadius: 10,
-    elevation: 2,
-  },
-  orderHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  statusPill: {
-    backgroundColor: Theme.colors.surfaceHighlight, // Light orange
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingHorizontal: Theme.spacing.lg,
+    paddingVertical: Theme.spacing.sm,
     borderRadius: Theme.borderRadius.pill,
+    zIndex: 10,
   },
-  divider: {
-    height: 1,
-    backgroundColor: Theme.colors.border,
-    marginVertical: Theme.spacing.md,
-  },
-  trackButton: {
-    flexDirection: 'row',
-    backgroundColor: Theme.colors.primary,
-    height: 48,
-    borderRadius: Theme.borderRadius.pill,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  pastActionRow: {
-    flexDirection: 'row',
-    gap: Theme.spacing.md,
-  },
-  reorderButton: {
-    flex: 1,
-    flexDirection: 'row',
-    height: 40,
-    borderRadius: Theme.borderRadius.pill,
-    borderWidth: 1,
-    borderColor: Theme.colors.border,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  rateButton: {
-    flex: 1,
-    flexDirection: 'row',
-    height: 40,
-    borderRadius: Theme.borderRadius.pill,
-    backgroundColor: Theme.colors.surfaceHighlight,
-    justifyContent: 'center',
-    alignItems: 'center',
-  }
 });

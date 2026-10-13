@@ -57,7 +57,7 @@ export default function VendorOrdersScreen() {
         ) : (
           filteredOrders.map((order, index) => (
             <Animated.View key={order.id} entering={FadeInDown.delay(index * 100).springify()}>
-              <TouchableOpacity activeOpacity={0.8} onPress={() => router.push(`/vendor/order/${order.id}` as any)}>
+              <TouchableOpacity activeOpacity={0.8} onPress={() => router.push(`/order/${order.id}` as any)}>
                 <AppCard padding="lg" style={styles.orderCard}>
                    <View style={styles.orderHeader}>
                      <AppText variant="h3">#{order.id}</AppText>
@@ -67,7 +67,7 @@ export default function VendorOrdersScreen() {
                    {order.status === 'Preparing' ? (
                      <AppButton 
                        title="Update to Ready" 
-                       onPress={() => router.push(`/vendor/order/${order.id}` as any)}
+                       onPress={() => router.push(`/order/${order.id}` as any)}
                      />
                    ) : (
                      <View style={styles.customerRow}>

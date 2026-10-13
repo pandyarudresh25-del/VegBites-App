@@ -59,5 +59,5 @@ const styles = StyleSheet.create({
   iconWrap: { width: 38, height: 38, borderRadius: 19, backgroundColor: Theme.colors.surfaceHighlight, justifyContent: 'center', alignItems: 'center' },
   label: { flex: 1 },
   footer: { marginTop: Theme.spacing.md },
-  logout: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: Theme.spacing.sm, paddingVertical: Theme.spacing.lg, backgroundColor: '#FFF0ED', borderRadius: Theme.borderRadius.lg },
+  logout: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: Theme.spacing.sm, paddingVertical: Theme.spacing.lg, backgroundColor: Theme.colors.primarySoft, borderRadius: Theme.borderRadius.lg },
 });

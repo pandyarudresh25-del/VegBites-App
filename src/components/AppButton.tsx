@@ -62,11 +62,11 @@ export const AppButton: React.FC<AppButtonProps> = ({
   const getTextColor = () => {
     if (disabled) return Theme.colors.textMuted;
     switch (variant) {
-      case 'primary': return '#FFFFFF';
+      case 'primary': return Theme.colors.surface;
       case 'secondary': return Theme.colors.text;
       case 'outline': return Theme.colors.primary;
       case 'text': return Theme.colors.primary;
-      default: return '#FFFFFF';
+      default: return Theme.colors.surface;
     }
   };
 
@@ -104,7 +104,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: Theme.spacing.lg,
-    shadowColor: '#000',
+    shadowColor: Theme.colors.text,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 12,

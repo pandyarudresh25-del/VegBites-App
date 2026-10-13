@@ -61,7 +61,7 @@ export default function RestaurantsScreen() {
         <View style={styles.list}>
           {restaurants.map((item, index) => (
             <Animated.View key={item.id} entering={FadeInDown.delay(index * 100).springify()}>
-              <AppPressable scaleTo={0.98} onPress={() => router.push(`/customer/restaurant/${item.id}` as any)}>
+              <AppPressable scaleTo={0.98} onPress={() => router.push(`/restaurant/${item.id}` as any)}>
                 <View style={styles.restaurantCard}>
                   <View style={styles.restaurantImageContainer}>
                     <Image source={item.image} style={styles.restaurantImage} />

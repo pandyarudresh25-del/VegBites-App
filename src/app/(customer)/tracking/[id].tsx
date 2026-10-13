@@ -1,321 +1,382 @@
-import React, { useEffect } from 'react';
-import { View, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, Image } from 'react-native';
-import { useRouter } from 'expo-router';
-import Animated, { FadeInDown, useSharedValue, useAnimatedStyle, withRepeat, withTiming, withSequence } from 'react-native-reanimated';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { View, StyleSheet, Pressable } from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import Animated, { FadeInDown, FadeIn, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
+import {
+  ArrowLeft,
+  Bike,
+  Check,
+  MessageSquare,
+  Phone,
+  Star,
+  MapPin,
+  Package,
+} from 'lucide-react-native';
 import { AppText } from '../../../components/AppText';
+import { AppButton } from '../../../components/AppButton';
+import { AppScreen, AppScrollScreen, ScreenHeader, EmptyState } from '../../../components/AppScreen';
 import { Theme } from '../../../theme';
-import { ArrowLeft, Bike, Check, Phone } from 'lucide-react-native';
 import { useLanguage } from '../../../context/LanguageContext';
+import { useAppStore } from '../../../store/AppStore';
+import { ORDER_FLOW, STATUS_KEY, STATUS_NOTE_KEY, OrderStatus } from '../../../domain/types';
 
-export default function OrderTrackingScreen() {
+const ACTIVE_STATUSES: OrderStatus[] = ['placed', 'confirmed', 'preparing', 'packed', 'picked_up', 'out_for_delivery'];
+
+/**
+ * LIVE TRACKING.
+ *
+ * Previously a static mock. It now reads the real order from the store and
+ * walks it through the fulfilment flow on a timer, so the timeline, the
+ * "LIVE" pulse and the ETA all reflect actual state. The interval is cleared
+ * on unmount and stops once the order is delivered or cancelled.
+ */
+export default function TrackingScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { t } = useLanguage();
+  const { t, currency, time } = useLanguage();
+  const { orders, advanceOrder } = useAppStore();
 
-  const STATUSES = [
-    { id: '1', label: t('tracking.pending'), completed: true },
-    { id: '2', label: t('tracking.accepted'), completed: true },
-    { id: '3', label: t('tracking.preparing'), completed: true },
-    { id: '4', label: t('tracking.foodReady'), completed: true },
-    { id: '5', label: t('tracking.outForDelivery'), completed: true },
-    { id: '6', label: t('tracking.delivered'), completed: false },
-  ];
+  const order = useMemo(() => orders.find((o) => o.id === id), [orders, id]);
+  const [pulse, setPulse] = useState(true);
+  const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Animation for the moving delivery marker
-  const markerPosition = useSharedValue(0);
-
+  // --- live progression ---------------------------------------------------
   useEffect(() => {
-    markerPosition.value = withRepeat(
-      withSequence(
-        withTiming(1, { duration: 3000 }),
-        withTiming(0, { duration: 0 })
-      ),
-      -1,
-      false
-    );
-  }, [markerPosition]);
-
-  const markerAnimatedStyle = useAnimatedStyle(() => {
-    return {
-      left: `${markerPosition.value * 80}%`, // Moves across the route
+    if (!order) return;
+    if (!ACTIVE_STATUSES.includes(order.status)) return;
+    tickRef.current = setInterval(() => {
+      advanceOrder(order.id);
+    }, Theme.motion.trackingTickMs);
+    return () => {
+      if (tickRef.current) clearInterval(tickRef.current);
     };
-  });
+  }, [order?.id, order?.status, advanceOrder]);
+
+  // --- "LIVE" dot pulse ---------------------------------------------------
+  const opacity = useSharedValue(1);
+  useEffect(() => {
+    opacity.value = withRepeat(withTiming(0.25, { duration: 700 }), -1, true);
+    const timer = setInterval(() => setPulse((p) => !p), 1200);
+    return () => clearInterval(timer);
+  }, [opacity]);
+  const pulseStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
+
+  if (!order) {
+    return (
+      <AppScrollScreen>
+        <ScreenHeader
+          title={t('tracking.title')}
+          left={
+            <Pressable onPress={() => router.back()} hitSlop={12} accessibilityLabel={t('common.back')}>
+              <ArrowLeft size={22} color={Theme.colors.text} />
+            </Pressable>
+          }
+        />
+        <EmptyState
+          icon={<Package size={28} color={Theme.colors.primary} />}
+          title={t('flow.orders.noActive')}
+          body={t('flow.orders.noActiveHint')}
+          action={<AppButton title={t('flow.tracking.backToOrders')} onPress={() => router.replace('/orders')} />}
+        />
+      </AppScrollScreen>
+    );
+  }
+
+  const isDone = order.status === 'delivered';
+  const isCancelled = order.status === 'cancelled';
+  const currentIndex = ORDER_FLOW.indexOf(order.status);
+  const isLive = ACTIVE_STATUSES.includes(order.status);
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <ArrowLeft size={24} color={Theme.colors.text} />
-        </TouchableOpacity>
-        <AppText variant="h2" style={styles.headerTitle}>{t('tracking.title')}</AppText>
-        <View style={{ width: 40 }} />
-      </View>
-
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-        
-        {/* LIVE MAP AREA */}
-        <Animated.View entering={FadeInDown.duration(600).springify()} style={styles.mapContainer}>
-           <View style={styles.mapGraphic}>
-              <View style={styles.routeLine}>
-                 <View style={styles.mapDotVendor}>
-                    <AppText variant="caption" color="#fff" style={{fontWeight: 'bold'}}>V</AppText>
-                 </View>
-                 <View style={styles.mapPath} />
-                 <Animated.View style={[styles.movingMarker, markerAnimatedStyle]}>
-                    <Bike size={18} color="#FFFFFF" strokeWidth={2.5} />
-                 </Animated.View>
-                 <View style={styles.mapDotCustomer}>
-                    <AppText variant="caption" color="#fff" style={{fontWeight: 'bold'}}>Me</AppText>
-                 </View>
-              </View>
-           </View>
-           <View style={styles.etaContainer}>
-             <AppText variant="h2" color={Theme.colors.primary}>15 Mins</AppText>
-             <AppText variant="caption" color={Theme.colors.textSecondary}>{t('tracking.estimatedArrival')}</AppText>
-           </View>
-        </Animated.View>
-
-        {/* TIMELINE */}
-        <View style={styles.timeline}>
-          {STATUSES.map((status, index) => (
-            <Animated.View key={status.id} entering={FadeInDown.delay(100 + index * 100).springify()}>
-              <View style={styles.statusRow}>
-                
-                <View style={styles.timelineIndicator}>
-                  <View style={[styles.dot, status.completed && styles.dotCompleted]}>
-                    {status.completed && <Check size={12} color="#fff" strokeWidth={3} />}
-                  </View>
-                  {index < STATUSES.length - 1 && (
-                    <View style={[styles.line, STATUSES[index+1].completed && styles.lineCompleted]} />
-                  )}
-                </View>
-
-                <AppText 
-                  variant="h3" 
-                  style={[styles.statusText, !status.completed && { color: Theme.colors.textMuted }]}
-                >
-                  {status.label}
+    <View style={{ flex: 1, backgroundColor: Theme.colors.background }}>
+      <AppScrollScreen
+        contentStyle={{ paddingBottom: Theme.spacing.xxl }}
+        footer={
+          isDone && !order.reviewed ? (
+            <View style={styles.footer}>
+              <AppButton
+                title={t('flow.orders.rateOrder')}
+                onPress={() => router.push(`/reviews?orderId=${order.id}`)}
+              />
+            </View>
+          ) : !isDone && !isCancelled ? (
+            <View style={styles.footer}>
+              <AppButton
+                title={t('flow.tracking.backToOrders')}
+                variant="outline"
+                onPress={() => router.push('/orders')}
+              />
+            </View>
+          ) : null
+        }
+      >
+        <ScreenHeader
+          title={t('tracking.title')}
+          subtitle={t('tracking.orderId', { id: order.id })}
+          left={
+            <Pressable onPress={() => router.back()} hitSlop={12} accessibilityLabel={t('common.back')}>
+              <ArrowLeft size={22} color={Theme.colors.text} />
+            </Pressable>
+          }
+          right={
+            isLive ? (
+              <View style={styles.livePill}>
+                <Animated.View style={[styles.liveDot, pulseStyle]} />
+                <AppText variant="caption" color={Theme.colors.success}>
+                  {t('flow.tracking.live')}
                 </AppText>
-                
               </View>
-            </Animated.View>
-          ))}
-        </View>
+            ) : null
+          }
+        />
 
-        <Animated.View entering={FadeInDown.delay(600).springify()} style={styles.deliveryPersonCard}>
-          <Image source={require('../../../../assets/images/gujarati_thali.jpg')} style={styles.driverAvatar} />
-          <View style={styles.driverInfo}>
-             <AppText variant="h3">Rajesh Bhai</AppText>
-             <AppText variant="bodySmall" color={Theme.colors.textSecondary}>{t('tracking.deliveryPartner')}</AppText>
+        {/* --- ETA hero --- */}
+        <Animated.View entering={FadeIn.duration(Theme.motion.base)} style={styles.heroCard}>
+          <AppText variant="eyebrow" color={Theme.colors.success}>
+            {isDone ? t('tracking.statusDelivered') : t('tracking.title')}
+          </AppText>
+          <AppText variant="display" style={{ marginTop: Theme.spacing.xs }}>
+            {isDone
+              ? t('flow.tracking.etaDone')
+              : isCancelled
+                ? t('flow.status.cancelled')
+                : order.etaMins > 5
+                  ? t('flow.tracking.eta', { mins: order.etaMins })
+                  : t('flow.tracking.etaNear')}
+          </AppText>
+          <AppText variant="bodySmall" style={{ marginTop: Theme.spacing.xs }}>
+            {t(STATUS_NOTE_KEY[order.status])}
+          </AppText>
+
+          {/* progress rail */}
+          <View style={styles.rail}>
+            <View
+              style={[
+                styles.railFill,
+                { width: `${(Math.max(currentIndex, 0) / (ORDER_FLOW.length - 1)) * 100}%` },
+              ]}
+            />
           </View>
-          <TouchableOpacity style={styles.callButton}>
-            <Phone size={20} color={Theme.colors.primary} />
-          </TouchableOpacity>
+          <View style={styles.railLabels}>
+            <AppText variant="caption">{t('flow.status.placed')}</AppText>
+            <AppText variant="caption">{t(STATUS_KEY[order.status])}</AppText>
+          </View>
         </Animated.View>
-      </ScrollView>
 
-      <Animated.View entering={FadeInDown.delay(800).springify()} style={styles.footer}>
-        <TouchableOpacity 
-          style={styles.actionButton}
-          activeOpacity={0.8}
-          onPress={() => router.push('/(customer)/home')}
-        >
-          <AppText variant="button">{t('tracking.backToHome')}</AppText>
-        </TouchableOpacity>
-      </Animated.View>
-    </SafeAreaView>
+        {/* --- courier --- */}
+        {order.courier && !isCancelled ? (
+          <Animated.View entering={FadeInDown.delay(60).duration(Theme.motion.base)} style={styles.courierCard}>
+            <View style={styles.courierAvatar}>
+              <Bike size={22} color={Theme.colors.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <AppText variant="caption">{t('flow.tracking.partner')}</AppText>
+              <AppText variant="h3">{order.courier.name}</AppText>
+              <View style={styles.courierMeta}>
+                <Star size={12} color={Theme.colors.primary} fill={Theme.colors.primary} />
+                <AppText variant="caption">{order.courier.rating}</AppText>
+                <AppText variant="caption">·</AppText>
+                <AppText variant="caption">
+                  {order.courier.vehicle} · {order.courier.plate}
+                </AppText>
+              </View>
+            </View>
+            <View style={styles.courierActions}>
+              <Pressable
+                style={styles.iconButton}
+                accessibilityRole="button"
+                accessibilityLabel={t('flow.tracking.call')}
+                onPress={() => router.push('/support')}
+              >
+                <Phone size={17} color={Theme.colors.success} />
+              </Pressable>
+              <Pressable
+                style={styles.iconButton}
+                accessibilityRole="button"
+                accessibilityLabel={t('flow.tracking.message')}
+                onPress={() => router.push('/chat')}
+              >
+                <MessageSquare size={17} color={Theme.colors.success} />
+              </Pressable>
+            </View>
+          </Animated.View>
+        ) : null}
+
+        {/* --- timeline --- */}
+        <Animated.View entering={FadeInDown.delay(120).duration(Theme.motion.base)} style={styles.card}>
+          <AppText variant="h3" style={{ marginBottom: Theme.spacing.md }}>
+            {t('flow.tracking.progress')}
+          </AppText>
+          {ORDER_FLOW.map((status, index) => {
+            const reached = index <= currentIndex && !isCancelled;
+            const isCurrent = index === currentIndex && !isDone && !isCancelled;
+            const at = order.timeline[status];
+            return (
+              <View key={status} style={styles.stepRow}>
+                <View style={styles.stepRail}>
+                  <View style={[styles.stepDot, reached && styles.stepDotDone, isCurrent && styles.stepDotCurrent]}>
+                    {reached && !isCurrent ? <Check size={11} color={Theme.colors.surface} strokeWidth={3} /> : null}
+                  </View>
+                  {index < ORDER_FLOW.length - 1 ? (
+                    <View style={[styles.stepLine, reached && styles.stepLineDone]} />
+                  ) : null}
+                </View>
+                <View style={styles.stepBody}>
+                  <AppText
+                    variant={isCurrent ? 'h3' : 'bodySmall'}
+                    color={reached ? Theme.colors.text : Theme.colors.textMuted}
+                  >
+                    {t(STATUS_KEY[status])}
+                  </AppText>
+                  <AppText variant="caption" color={reached ? Theme.colors.textSecondary : Theme.colors.textMuted}>
+                    {at ? time(at) : t(STATUS_NOTE_KEY[status])}
+                  </AppText>
+                </View>
+              </View>
+            );
+          })}
+        </Animated.View>
+
+        {/* --- delivery address + summary --- */}
+        <Animated.View entering={FadeInDown.delay(160).duration(Theme.motion.base)} style={styles.card}>
+          <View style={styles.rowBetween}>
+            <AppText variant="h3">{t('flow.tracking.deliverTo')}</AppText>
+            <MapPin size={16} color={Theme.colors.primary} />
+          </View>
+          <AppText variant="bodySmall" style={{ marginTop: Theme.spacing.sm }}>
+            {order.address.line1}, {order.address.line2}
+          </AppText>
+          <AppText variant="bodySmall">
+            {order.address.city} – {order.address.pincode}
+          </AppText>
+
+          <View style={styles.divider} />
+
+          <AppText variant="h3" style={{ marginBottom: Theme.spacing.sm }}>
+            {t('flow.tracking.orderDetails')}
+          </AppText>
+          {order.lines.map((line) => (
+            <View key={line.id} style={styles.rowBetween}>
+              <AppText variant="bodySmall" style={{ flex: 1 }} numberOfLines={1}>
+                {line.quantity} × {line.name}
+              </AppText>
+              <AppText variant="bodySmall" color={Theme.colors.text}>
+                {currency(line.unitPrice * line.quantity)}
+              </AppText>
+            </View>
+          ))}
+          <View style={styles.divider} />
+          <View style={styles.rowBetween}>
+            <AppText variant="h3">{t('flow.common.grandTotal')}</AppText>
+            <AppText variant="price">{currency(order.bill.total)}</AppText>
+          </View>
+          {order.paymentMethod === 'cod' ? (
+            <AppText variant="caption" color={Theme.colors.primary} style={{ marginTop: 4 }}>
+              {t('flow.orders.payCod', { amount: currency(order.bill.total) })}
+            </AppText>
+          ) : null}
+        </Animated.View>
+
+        <Pressable onPress={() => router.push('/support')} style={styles.helpRow}>
+          <AppText variant="bodySmall" color={Theme.colors.primary}>
+            {t('flow.tracking.help')}
+          </AppText>
+        </Pressable>
+      </AppScrollScreen>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Theme.colors.background,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: Theme.spacing.lg,
-    paddingVertical: Theme.spacing.md,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    fontSize: 20,
-  },
-  content: {
-    paddingTop: Theme.spacing.md,
-    paddingBottom: Theme.spacing.xxl,
-  },
-  mapContainer: {
-    marginHorizontal: Theme.spacing.xl,
-    marginBottom: Theme.spacing.xxl,
-    borderRadius: Theme.borderRadius.xl,
+  heroCard: {
     backgroundColor: Theme.colors.surface,
-    borderWidth: 1,
+    borderRadius: Theme.borderRadius.xl,
+    padding: Theme.spacing.lg,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: Theme.colors.border,
+    ...Theme.shadows.medium,
+  },
+  rail: {
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: Theme.colors.surfaceSecondary,
+    marginTop: Theme.spacing.lg,
     overflow: 'hidden',
-    shadowColor: Theme.colors.text,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.04,
-    shadowRadius: 10,
-    elevation: 2,
   },
-  mapGraphic: {
-    height: 180,
-    backgroundColor: '#E8E4D9', // Soft map background
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: Theme.spacing.xxl,
-  },
-  routeLine: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    width: '100%',
-    height: 40,
-  },
-  mapDotVendor: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: Theme.colors.text,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 3,
-  },
-  mapDotCustomer: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: Theme.colors.success,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 3,
-    position: 'absolute',
-    right: 0,
-  },
-  mapPath: {
-    flex: 1,
-    height: 4,
-    backgroundColor: Theme.colors.border,
-    borderStyle: 'dashed',
-    borderWidth: 1,
-    borderColor: Theme.colors.primary,
-    zIndex: 1,
-    marginHorizontal: 16,
-  },
-  movingMarker: {
-    position: 'absolute',
-    zIndex: 4,
-    top: -8,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: Theme.colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: Theme.colors.surface,
-  },
-  etaContainer: {
-    padding: Theme.spacing.lg,
-    alignItems: 'center',
-    borderTopWidth: 1,
-    borderTopColor: Theme.colors.border,
+  railFill: { height: '100%', borderRadius: 3, backgroundColor: Theme.colors.success },
+  railLabels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: Theme.spacing.sm },
+  card: {
     backgroundColor: Theme.colors.surface,
-  },
-  timeline: {
-    paddingLeft: Theme.spacing.xl,
-    paddingRight: Theme.spacing.xl,
-    marginBottom: Theme.spacing.xxl,
-  },
-  statusRow: {
-    flexDirection: 'row',
-    minHeight: 60,
-  },
-  timelineIndicator: {
-    width: 24,
-    alignItems: 'center',
-    marginRight: Theme.spacing.lg,
-  },
-  dot: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: Theme.colors.border,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 2,
-  },
-  dotCompleted: {
-    backgroundColor: Theme.colors.success,
-  },
-  line: {
-    width: 2,
-    flex: 1,
-    backgroundColor: Theme.colors.border,
-    marginTop: -2,
-    marginBottom: -2,
-    zIndex: 1,
-  },
-  lineCompleted: {
-    backgroundColor: Theme.colors.success,
-  },
-  statusText: {
-    marginTop: -2,
-  },
-  deliveryPersonCard: {
-    marginHorizontal: Theme.spacing.xl,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Theme.colors.surface,
-    padding: Theme.spacing.lg,
     borderRadius: Theme.borderRadius.xl,
-    borderWidth: 1,
+    padding: Theme.spacing.lg,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: Theme.colors.border,
-    shadowColor: Theme.colors.text,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.04,
-    shadowRadius: 10,
-    elevation: 2,
+    ...Theme.shadows.soft,
   },
-  driverAvatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    marginRight: Theme.spacing.md,
-  },
-  driverInfo: {
-    flex: 1,
-    gap: 4,
-  },
-  callButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: Theme.colors.background,
-    justifyContent: 'center',
+  courierCard: {
+    flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: Theme.colors.border,
-  },
-  footer: {
-    padding: Theme.spacing.xl,
-    paddingBottom: Theme.spacing.xxl,
+    gap: Theme.spacing.md,
     backgroundColor: Theme.colors.surface,
-    borderTopWidth: 1,
+    borderRadius: Theme.borderRadius.xl,
+    padding: Theme.spacing.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Theme.colors.border,
+    ...Theme.shadows.soft,
+  },
+  courierAvatar: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: Theme.colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  courierMeta: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
+  courierActions: { flexDirection: 'row', gap: Theme.spacing.sm },
+  iconButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: Theme.colors.successSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepRow: { flexDirection: 'row', gap: Theme.spacing.md },
+  stepRail: { alignItems: 'center', width: 22 },
+  stepDot: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 2,
+    borderColor: Theme.colors.border,
+    backgroundColor: Theme.colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepDotDone: { backgroundColor: Theme.colors.success, borderColor: Theme.colors.success },
+  stepDotCurrent: { borderColor: Theme.colors.primary, backgroundColor: Theme.colors.primarySoft },
+  stepLine: { flex: 1, width: 2, backgroundColor: Theme.colors.border, minHeight: 26 },
+  stepLineDone: { backgroundColor: Theme.colors.success },
+  stepBody: { flex: 1, paddingBottom: Theme.spacing.lg },
+  rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: Theme.colors.divider, marginVertical: Theme.spacing.md },
+  livePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: Theme.colors.successSoft,
+    paddingHorizontal: Theme.spacing.sm,
+    paddingVertical: 3,
+    borderRadius: Theme.borderRadius.pill,
+  },
+  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: Theme.colors.success },
+  helpRow: { alignItems: 'center', paddingVertical: Theme.spacing.md },
+  footer: {
+    paddingVertical: Theme.spacing.md,
+    paddingHorizontal: Theme.layout.screenPaddingX,
+    backgroundColor: Theme.colors.surface,
+    borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: Theme.colors.border,
   },
-  actionButton: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: Theme.colors.primary,
-    height: 56,
-    borderRadius: Theme.borderRadius.pill,
-    borderWidth: 1,
-    borderColor: Theme.colors.border,
-  }
 });

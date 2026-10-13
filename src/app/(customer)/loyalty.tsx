@@ -11,9 +11,9 @@ export default function LoyaltyScreen() {
   const router = useRouter();
   const { t } = useLanguage();
   const rewards = [
-    { title: t('account.freeButtermilk'), points: '80 pts', color: '#FFF0DE' },
-    { title: t('account.nextTiffinDiscount'), points: '150 pts', color: '#EAF5E8' },
-    { title: t('account.freeDelivery'), points: '200 pts', color: '#EAF1FF' },
+    { title: t('account.freeButtermilk'), points: '80 pts', color: Theme.colors.surfaceHighlight },
+    { title: t('account.nextTiffinDiscount'), points: '150 pts', color: Theme.colors.successSoft },
+    { title: t('account.freeDelivery'), points: '200 pts', color: Theme.colors.surfaceSecondary },
   ];
 
   return (
@@ -56,7 +56,7 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: Theme.spacing.lg, paddingVertical: Theme.spacing.md },
   iconButton: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
   content: { padding: Theme.spacing.xl, gap: Theme.spacing.xxl },
-  pointsCard: { backgroundColor: Theme.colors.surfaceHighlight, borderRadius: Theme.borderRadius.xl, padding: Theme.spacing.xl, alignItems: 'center', borderWidth: 1, borderColor: '#FFE2C3' },
+  pointsCard: { backgroundColor: Theme.colors.surfaceHighlight, borderRadius: Theme.borderRadius.xl, padding: Theme.spacing.xl, alignItems: 'center', borderWidth: 1, borderColor: Theme.colors.border },
   star: { width: 52, height: 52, borderRadius: 26, backgroundColor: Theme.colors.surface, justifyContent: 'center', alignItems: 'center', marginBottom: Theme.spacing.md },
   points: { color: Theme.colors.primary, fontSize: 44, marginVertical: Theme.spacing.xs },
   progressTrack: { width: '100%', height: 8, borderRadius: 4, backgroundColor: Theme.colors.surface, marginTop: Theme.spacing.lg, overflow: 'hidden' },

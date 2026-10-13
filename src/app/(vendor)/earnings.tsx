@@ -55,7 +55,7 @@ export default function VendorEarningsScreen() {
              ].map((tx, index) => (
                <TouchableOpacity key={tx.id} style={[styles.txItem, index < 2 && styles.borderBottom]}>
                  <View style={styles.txLeft}>
-                   <View style={[styles.txIconBox, { backgroundColor: tx.pos ? '#E8F5E9' : '#FFEBEE' }]}>
+                   <View style={[styles.txIconBox, { backgroundColor: tx.pos ? Theme.colors.successSoft : Theme.colors.primarySoft }]}>
                      {tx.pos ? <TrendingUp size={16} color={Theme.colors.success} /> : <CreditCard size={16} color={Theme.colors.error} />}
                    </View>
                    <View>
@@ -101,7 +101,7 @@ const styles = StyleSheet.create({
     marginBottom: Theme.spacing.lg,
   },
   withdrawBtn: {
-    backgroundColor: '#fff',
+    backgroundColor: Theme.colors.surface,
     paddingHorizontal: Theme.spacing.xl,
     paddingVertical: 12,
     borderRadius: Theme.borderRadius.md,

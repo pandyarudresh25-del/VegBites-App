@@ -1,231 +1,351 @@
-import React from 'react';
-import { View, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, Image } from 'react-native';
+import React, { useState } from 'react';
+import { View, StyleSheet, Image, Pressable, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeInDown, Layout } from 'react-native-reanimated';
+import { ArrowLeft, ShoppingBag, Tag, X, UtensilsCrossed } from 'lucide-react-native';
 import { AppText } from '../../components/AppText';
+import { AppButton } from '../../components/AppButton';
+import { AppScrollScreen, ScreenHeader, EmptyState } from '../../components/AppScreen';
+import { QuantityStepper } from '../../components/QuantityStepper';
+import { BillSummary, FooterTotal } from '../../components/BillSummary';
 import { Theme } from '../../theme';
-import { ArrowLeft, Tag } from 'lucide-react-native';
 import { useLanguage } from '../../context/LanguageContext';
-
-const CART_ITEMS = [
-  { id: '1', name: 'Gujarati Thali', quantity: 1, price: 120, image: require('../../../assets/images/gujarati_thali.jpg') },
-  { id: '2', name: 'Buttermilk', quantity: 1, price: 20, image: require('../../../assets/images/south_indian.jpg') },
-  { id: '3', name: 'Papad', quantity: 1, price: 15, image: require('../../../assets/images/jain_food.jpg') },
-];
+import { useAppStore } from '../../store/AppStore';
+import { PRICING } from '../../domain/types';
 
 export default function CartScreen() {
   const router = useRouter();
-  const { t } = useLanguage();
+  const { t, language, currency } = useLanguage();
+  const {
+    cart,
+    cartCount,
+    itemTotal,
+    bill,
+    couponCode,
+    setQuantity,
+    removeLine,
+    clearCart,
+    applyCoupon,
+    removeCoupon,
+  } = useAppStore();
 
-  const itemTotal = CART_ITEMS.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const deliveryFee = 30;
-  const platformFee = 5;
-  const taxes = 12;
-  const discount = 15;
-  const total = itemTotal + deliveryFee + platformFee + taxes - discount;
+  const [couponInput, setCouponInput] = useState('');
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const [couponSuccess, setCouponSuccess] = useState<string | null>(null);
+  const [confirmingClear, setConfirmingClear] = useState(false);
 
+  const remainingForFreeDelivery = Math.max(0, PRICING.freeDeliveryOver - itemTotal);
+  const freeDeliveryProgress = Math.min(1, itemTotal / PRICING.freeDeliveryOver);
+  const savings = bill.discount;
+
+  const handleApplyCoupon = () => {
+    const code = couponInput.trim().toUpperCase();
+    if (!code) return;
+    const ok = applyCoupon(code);
+    setCouponError(ok ? null : t('flow.cart.couponInvalid'));
+    setCouponSuccess(ok ? t('flow.cart.couponApplied', { code }) : null);
+    if (ok) setCouponInput('');
+  };
+
+  const label = (en: string, gu: string) => (language === 'gu' ? gu : en);
+
+  // ------------------------------------------------------------- empty state
+  if (cart.length === 0) {
+    return (
+      <AppScrollScreen>
+        <ScreenHeader
+          title={t('flow.tabs.cart')}
+          left={
+            <Pressable onPress={() => router.back()} hitSlop={12} accessibilityLabel={t('common.back')}>
+              <ArrowLeft size={22} color={Theme.colors.text} />
+            </Pressable>
+          }
+        />
+        <EmptyState
+          icon={<ShoppingBag size={30} color={Theme.colors.primary} />}
+          title={t('flow.cart.empty')}
+          body={t('flow.cart.emptyHint')}
+          action={
+            <View style={{ gap: Theme.spacing.md }}>
+              <AppButton title={t('flow.cart.browseRestaurants')} onPress={() => router.push('/restaurants')} />
+              <AppButton
+                title={t('flow.cart.browseTiffin')}
+                variant="outline"
+                onPress={() => router.push('/tiffins')}
+              />
+            </View>
+          }
+        />
+      </AppScrollScreen>
+    );
+  }
+
+  // ------------------------------------------------------------------ filled
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <ArrowLeft size={24} color={Theme.colors.text} />
-        </TouchableOpacity>
-        <AppText variant="h2" style={styles.headerTitle}>{t('cart.title')}</AppText>
-        <View style={{ width: 40 }} />
-      </View>
+    <View style={{ flex: 1, backgroundColor: Theme.colors.background }}>
+      <AppScrollScreen
+        contentStyle={{ paddingBottom: Theme.spacing.xxl }}
+        footer={
+          <FooterTotal total={bill.total} savings={savings}>
+            <AppButton
+              title={t('cart.proceedToCheckout')}
+              onPress={() => router.push('/checkout')}
+            />
+          </FooterTotal>
+        }
+      >
+        <ScreenHeader
+          title={t('flow.tabs.cart')}
+          subtitle={t('flow.cart.itemsCount', { count: cartCount })}
+          left={
+            <Pressable onPress={() => router.back()} hitSlop={12} accessibilityLabel={t('common.back')}>
+              <ArrowLeft size={22} color={Theme.colors.text} />
+            </Pressable>
+          }
+          right={
+            confirmingClear ? (
+              <Pressable onPress={() => setConfirmingClear(false)} hitSlop={10}>
+                <X size={20} color={Theme.colors.textSecondary} />
+              </Pressable>
+            ) : (
+              <Pressable onPress={() => setConfirmingClear(true)} hitSlop={10}>
+                <AppText variant="caption" color={Theme.colors.error}>
+                  {t('flow.cart.clearCart')}
+                </AppText>
+              </Pressable>
+            )
+          }
+        />
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-        <View style={styles.itemsList}>
-          {CART_ITEMS.map((item, index) => (
-            <Animated.View key={item.id} entering={FadeInDown.delay(100 + index * 50).springify()}>
-              <View style={styles.itemRow}>
-                <View style={styles.itemLeft}>
-                  <Image source={item.image as any} style={styles.itemImage} />
-                  <AppText variant="h3">{item.name} <AppText variant="bodySmall" color={Theme.colors.textMuted}>x{item.quantity}</AppText></AppText>
+        {/* Inline confirm — Alert.alert is a no-op on react-native-web. */}
+        {confirmingClear ? (
+          <Animated.View entering={FadeInDown.duration(Theme.motion.fast)} style={styles.confirmBar}>
+            <AppText variant="bodySmall" style={{ flex: 1 }}>
+              {t('flow.cart.clearConfirm')}
+            </AppText>
+            <Pressable
+              onPress={() => {
+                clearCart();
+                setConfirmingClear(false);
+              }}
+            >
+              <AppText variant="label" color={Theme.colors.error}>
+                {t('common.remove')}
+              </AppText>
+            </Pressable>
+          </Animated.View>
+        ) : null}
+
+        {/* --- free delivery nudge --- */}
+        <View style={styles.deliveryCard}>
+          <AppText variant="bodySmall" color={Theme.colors.text}>
+            {remainingForFreeDelivery > 0
+              ? t('flow.cart.freeDeliveryOver', { amount: currency(remainingForFreeDelivery) })
+              : t('flow.cart.freeDeliveryUnlocked')}
+          </AppText>
+          <View style={styles.progressTrack}>
+            <View style={[styles.progressFill, { width: `${freeDeliveryProgress * 100}%` }]} />
+          </View>
+        </View>
+
+        {/* --- lines --- */}
+        <View style={styles.listCard}>
+          {cart.map((line, index) => (
+            <Animated.View
+              key={line.id}
+              layout={Layout.springify()}
+              entering={FadeInDown.delay(index * 40).duration(Theme.motion.base)}
+            >
+              <View style={styles.lineRow}>
+                {line.image ? (
+                  <Image source={line.image} style={styles.lineImage} />
+                ) : (
+                  <View style={[styles.lineImage, styles.lineImageFallback]}>
+                    <UtensilsCrossed size={20} color={Theme.colors.primary} />
+                  </View>
+                )}
+
+                <View style={styles.lineBody}>
+                  <AppText variant="h3" numberOfLines={2}>
+                    {label(line.name, line.nameGu)}
+                  </AppText>
+                  <View style={styles.priceRow}>
+                    <AppText variant="price">{currency(line.unitPrice)}</AppText>
+                    {line.mrp && line.mrp > line.unitPrice ? (
+                      <AppText variant="caption" style={styles.strike}>
+                        {currency(line.mrp)}
+                      </AppText>
+                    ) : null}
+                    {line.kind === 'plan' ? (
+                      <View style={styles.planTag}>
+                        <AppText variant="caption" color={Theme.colors.success}>
+                          {t('flow.cart.tiffinPlan')}
+                        </AppText>
+                      </View>
+                    ) : null}
+                  </View>
                 </View>
-                <AppText variant="h3">₹{item.price}</AppText>
+
+                <QuantityStepper
+                  quantity={line.quantity}
+                  onChange={(next) => (next <= 0 ? removeLine(line.id) : setQuantity(line.id, next))}
+                />
               </View>
-              {index < CART_ITEMS.length - 1 && (
-                <View style={styles.dottedDivider} />
-              )}
+              {index < cart.length - 1 ? <View style={styles.divider} /> : null}
             </Animated.View>
           ))}
         </View>
 
-        <Animated.View entering={FadeInDown.delay(300).springify()} style={styles.offersSection}>
-           <TouchableOpacity style={styles.offerRow} activeOpacity={0.7}>
-              <View style={styles.offerLeft}>
-                 <Tag size={20} color={Theme.colors.primary} />
-                 <AppText variant="h3">{t('cart.applyCoupon')}</AppText>
+        {/* --- coupon --- */}
+        <View style={styles.couponCard}>
+          <View style={styles.couponHeader}>
+            <Tag size={18} color={Theme.colors.primary} />
+            <AppText variant="h3">{t('flow.cart.coupon')}</AppText>
+            {couponCode ? (
+              <Pressable
+                onPress={() => {
+                  removeCoupon();
+                  setCouponSuccess(null);
+                }}
+                hitSlop={8}
+                style={styles.couponRemove}
+              >
+                <X size={14} color={Theme.colors.error} />
+              </Pressable>
+            ) : null}
+          </View>
+
+          {couponCode ? (
+            <AppText variant="bodySmall" color={Theme.colors.success}>
+              {t('flow.cart.couponApplied', { code: couponCode })}
+            </AppText>
+          ) : (
+            <>
+              <View style={styles.couponInputRow}>
+                <TextInput
+                  value={couponInput}
+                  onChangeText={(text) => {
+                    setCouponInput(text);
+                    setCouponError(null);
+                  }}
+                  placeholder={t('flow.cart.couponPlaceholder')}
+                  placeholderTextColor={Theme.colors.textMuted}
+                  autoCapitalize="characters"
+                  style={styles.couponInput}
+                  onSubmitEditing={handleApplyCoupon}
+                  returnKeyType="done"
+                />
+                <Pressable onPress={handleApplyCoupon} style={styles.couponApply} accessibilityRole="button">
+                  <AppText variant="label" color={Theme.colors.surface}>
+                    {t('common.apply')}
+                  </AppText>
+                </Pressable>
               </View>
-              <AppText variant="caption" color={Theme.colors.primary}>{t('cart.viewOffers')}</AppText>
-           </TouchableOpacity>
-        </Animated.View>
+              <AppText variant={couponError ? 'bodySmall' : 'caption'} color={couponError ? Theme.colors.error : Theme.colors.textMuted}>
+                {couponError ?? t('flow.cart.couponHint')}
+              </AppText>
+            </>
+          )}
+          {couponSuccess ? (
+            <AppText variant="caption" color={Theme.colors.success} style={{ marginTop: 4 }}>
+              {couponSuccess}
+            </AppText>
+          ) : null}
+        </View>
 
-        <Animated.View entering={FadeInDown.delay(400).springify()} style={styles.billDetailsCard}>
-           <AppText variant="h3" style={styles.billTitle}>{t('cart.billDetails')}</AppText>
-           
-           <View style={styles.billRow}>
-             <AppText variant="bodySmall" color={Theme.colors.textSecondary}>{t('cart.itemTotal')}</AppText>
-             <AppText variant="bodySmall" color={Theme.colors.textSecondary}>₹{itemTotal}</AppText>
-           </View>
-           
-           <View style={styles.billRow}>
-             <AppText variant="bodySmall" color={Theme.colors.textSecondary}>{t('cart.deliveryFee')}</AppText>
-             <AppText variant="bodySmall" color={Theme.colors.textSecondary}>₹{deliveryFee}</AppText>
-           </View>
-           
-           <View style={styles.billRow}>
-             <AppText variant="bodySmall" color={Theme.colors.textSecondary}>{t('cart.platformFee')}</AppText>
-             <AppText variant="bodySmall" color={Theme.colors.textSecondary}>₹{platformFee}</AppText>
-           </View>
-
-           <View style={styles.billRow}>
-             <AppText variant="bodySmall" color={Theme.colors.textSecondary}>{t('cart.taxes')}</AppText>
-             <AppText variant="bodySmall" color={Theme.colors.textSecondary}>₹{taxes}</AppText>
-           </View>
-           
-           <View style={styles.billRow}>
-             <AppText variant="bodySmall" color={Theme.colors.success}>{t('cart.discount')}</AppText>
-             <AppText variant="bodySmall" color={Theme.colors.success}>-₹{discount}</AppText>
-           </View>
-           
-           <View style={styles.solidDivider} />
-
-           <View style={styles.totalRow}>
-             <AppText variant="h2">{t('cart.grandTotal')}</AppText>
-             <AppText variant="h2">₹{total}</AppText>
-           </View>
-        </Animated.View>
-      </ScrollView>
-
-      <Animated.View entering={FadeInDown.delay(500).springify()} style={styles.footer}>
-        <TouchableOpacity 
-          style={styles.actionButton}
-          activeOpacity={0.8}
-          onPress={() => router.push('/(customer)/checkout')}
-        >
-          <AppText variant="button">{t('cart.proceedToCheckout')}</AppText>
-        </TouchableOpacity>
-      </Animated.View>
-    </SafeAreaView>
+        <BillSummary bill={bill} />
+      </AppScrollScreen>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Theme.colors.background,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  listCard: {
+    backgroundColor: Theme.colors.surface,
+    borderRadius: Theme.borderRadius.xl,
     paddingHorizontal: Theme.spacing.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Theme.colors.border,
+    ...Theme.shadows.soft,
+  },
+  lineRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Theme.spacing.md,
     paddingVertical: Theme.spacing.md,
   },
-  backButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
+  lineImage: { width: 52, height: 52, borderRadius: Theme.borderRadius.md, backgroundColor: Theme.colors.surfaceSecondary },
+  lineImageFallback: { alignItems: 'center', justifyContent: 'center' },
+  lineBody: { flex: 1, gap: 4 },
+  priceRow: { flexDirection: 'row', alignItems: 'center', gap: Theme.spacing.sm },
+  strike: { textDecorationLine: 'line-through' },
+  planTag: {
+    backgroundColor: Theme.colors.successSoft,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: Theme.borderRadius.sm,
   },
-  headerTitle: {
-    fontSize: 20,
-  },
-  content: {
-    paddingHorizontal: Theme.spacing.xl,
-    paddingTop: Theme.spacing.lg,
-    paddingBottom: Theme.spacing.xxl,
-  },
-  itemsList: {
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: Theme.colors.divider },
+  deliveryCard: {
+    backgroundColor: Theme.colors.surface,
+    borderRadius: Theme.borderRadius.lg,
+    padding: Theme.spacing.md,
     gap: Theme.spacing.sm,
-    marginBottom: Theme.spacing.xl,
-  },
-  itemRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: Theme.spacing.sm,
-  },
-  itemLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Theme.spacing.md,
-  },
-  itemImage: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-  },
-  dottedDivider: {
-    height: 1,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: Theme.colors.border,
-    borderStyle: 'dashed',
-    marginVertical: Theme.spacing.md,
   },
-  offersSection: {
-    marginBottom: Theme.spacing.xl,
+  progressTrack: {
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: Theme.colors.surfaceSecondary,
+    overflow: 'hidden',
   },
-  offerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  progressFill: { height: '100%', borderRadius: 3, backgroundColor: Theme.colors.success },
+  couponCard: {
     backgroundColor: Theme.colors.surface,
+    borderRadius: Theme.borderRadius.xl,
     padding: Theme.spacing.lg,
-    borderRadius: Theme.borderRadius.xl,
+    gap: Theme.spacing.sm,
     borderWidth: 1,
     borderColor: Theme.colors.border,
     borderStyle: 'dashed',
   },
-  offerLeft: {
+  couponHeader: { flexDirection: 'row', alignItems: 'center', gap: Theme.spacing.sm },
+  couponRemove: {
+    marginLeft: 'auto',
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: Theme.colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  couponInputRow: { flexDirection: 'row', alignItems: 'center', gap: Theme.spacing.sm },
+  couponInput: {
+    flex: 1,
+    height: 44,
+    borderRadius: Theme.borderRadius.md,
+    backgroundColor: Theme.colors.surfaceSecondary,
+    paddingHorizontal: Theme.spacing.md,
+    fontSize: 14,
+    color: Theme.colors.text,
+    fontWeight: '600',
+    letterSpacing: 0.6,
+  },
+  couponApply: {
+    height: 44,
+    paddingHorizontal: Theme.spacing.lg,
+    borderRadius: Theme.borderRadius.md,
+    backgroundColor: Theme.colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  confirmBar: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Theme.spacing.md,
+    backgroundColor: Theme.colors.primarySoft,
+    borderRadius: Theme.borderRadius.lg,
+    padding: Theme.spacing.md,
   },
-  billDetailsCard: {
-    backgroundColor: Theme.colors.surface,
-    borderRadius: Theme.borderRadius.xl,
-    padding: Theme.spacing.xl,
-    borderWidth: 1,
-    borderColor: Theme.colors.border,
-    shadowColor: Theme.colors.text,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.04,
-    shadowRadius: 10,
-    elevation: 2,
-  },
-  billTitle: {
-    marginBottom: Theme.spacing.lg,
-  },
-  billRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: Theme.spacing.md,
-  },
-  solidDivider: {
-    height: 1,
-    backgroundColor: Theme.colors.border,
-    marginVertical: Theme.spacing.md,
-  },
-  totalRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: Theme.spacing.xs,
-  },
-  footer: {
-    padding: Theme.spacing.xl,
-    paddingBottom: Theme.spacing.xxl,
-    backgroundColor: Theme.colors.surface,
-    borderTopWidth: 1,
-    borderTopColor: Theme.colors.border,
-  },
-  actionButton: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: Theme.colors.primary,
-    height: 56,
-    borderRadius: Theme.borderRadius.pill,
-  }
 });

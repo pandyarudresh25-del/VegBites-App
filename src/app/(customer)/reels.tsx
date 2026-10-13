@@ -77,7 +77,7 @@ export default function ReelsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: Theme.colors.text,
   },
   videoBackground: {
     position: 'absolute',
@@ -139,7 +139,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     marginRight: Theme.spacing.md,
     borderWidth: 1,
-    borderColor: '#fff',
+    borderColor: Theme.colors.surface,
   },
   followButton: {
     flexDirection: 'row',
@@ -159,7 +159,7 @@ const styles = StyleSheet.create({
     textShadowRadius: 2,
   },
   orderCta: {
-    backgroundColor: '#fff',
+    backgroundColor: Theme.colors.surface,
     paddingVertical: Theme.spacing.md,
     paddingHorizontal: Theme.spacing.xl,
     borderRadius: Theme.borderRadius.pill,

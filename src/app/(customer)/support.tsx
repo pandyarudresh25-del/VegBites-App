@@ -31,7 +31,7 @@ export default function SupportScreen() {
            <AppText variant="h3" style={{marginBottom: Theme.spacing.md}}>Contact Us</AppText>
            <View style={styles.contactGrid}>
              <TouchableOpacity style={styles.contactCard} activeOpacity={0.7} onPress={() => router.push('/(customer)/chat')}>
-                <View style={[styles.iconBg, {backgroundColor: '#E0F2FE'}]}>
+                <View style={[styles.iconBg, {backgroundColor: Theme.colors.primarySoft}]}>
                   <MessageSquare size={24} color="#0284C7" />
                 </View>
                 <AppText variant="h3">Chat AI</AppText>

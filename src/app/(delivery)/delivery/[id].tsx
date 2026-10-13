@@ -108,7 +108,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#E8E4D9', // Map background tint
+    backgroundColor: Theme.colors.surfaceSecondary, // Map background tint
   },
   mapRoute: {
     flexDirection: 'row',
@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#3B82F6',
+    backgroundColor: Theme.colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 2,
@@ -162,7 +162,7 @@ const styles = StyleSheet.create({
     zIndex: 2,
   },
   dotCompleted: {
-    backgroundColor: '#3B82F6', // Blue for delivery tracking as per design logic usually
+    backgroundColor: Theme.colors.primary, // Blue for delivery tracking as per design logic usually
   },
   line: {
     width: 2,

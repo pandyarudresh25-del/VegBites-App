@@ -31,7 +31,7 @@ export default function TopVendorsScreen() {
             <TouchableOpacity 
               style={styles.vendorCard} 
               activeOpacity={0.7}
-              onPress={() => router.push(`/customer/tiffins/${vendor.id}/thali` as any)}
+              onPress={() => router.push(`/tiffins/${vendor.id}/thali` as any)}
             >
               <Image source={{ uri: vendor.image }} style={styles.vendorImage} />
               <View style={styles.vendorInfo}>

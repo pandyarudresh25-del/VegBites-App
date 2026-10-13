@@ -68,6 +68,6 @@ const styles = StyleSheet.create({
   list: { backgroundColor: Theme.colors.surface, borderRadius: Theme.borderRadius.lg, borderWidth: 1, borderColor: Theme.colors.border, paddingHorizontal: Theme.spacing.lg },
   row: { flexDirection: 'row', alignItems: 'center', paddingVertical: Theme.spacing.lg },
   divider: { borderBottomWidth: 1, borderBottomColor: Theme.colors.border },
-  transactionIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#EAF5E8', justifyContent: 'center', alignItems: 'center', marginRight: Theme.spacing.md },
+  transactionIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: Theme.colors.successSoft, justifyContent: 'center', alignItems: 'center', marginRight: Theme.spacing.md },
   rowBody: { flex: 1, gap: Theme.spacing.xs },
 });

@@ -27,7 +27,7 @@ export default function NotificationsScreen() {
     switch(type) {
       case 'order': return Theme.colors.success + '20';
       case 'promo': return Theme.colors.primary + '20';
-      default: return '#E0F2FE';
+      default: return Theme.colors.primarySoft;
     }
   };
 

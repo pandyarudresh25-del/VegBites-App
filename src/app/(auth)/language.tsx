@@ -134,7 +134,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   avatarSelected: {
-    backgroundColor: '#FFE5CC',
+    backgroundColor: Theme.colors.primarySoft,
   },
   langName: {
     flex: 1,

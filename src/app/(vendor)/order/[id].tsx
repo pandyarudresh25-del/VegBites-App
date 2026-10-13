@@ -54,7 +54,7 @@ export default function VendorOrderDetailsScreen() {
           </TouchableOpacity>
         ) : (
           <TouchableOpacity 
-            style={[styles.actionButton, { backgroundColor: '#3B82F6' }]} // Blue button as shown in reference
+            style={[styles.actionButton, { backgroundColor: Theme.colors.primary }]} // Blue button as shown in reference
             activeOpacity={0.8}
             onPress={() => router.push('/(vendor)/dashboard')}
           >

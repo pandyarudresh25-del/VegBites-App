@@ -6,7 +6,7 @@ export default function DeliveryLayout() {
   return (
     <Tabs screenOptions={{ 
       headerShown: false,
-      tabBarActiveTintColor: '#3B82F6', // Blue for delivery theme
+      tabBarActiveTintColor: Theme.colors.primary, // Blue for delivery theme
       tabBarInactiveTintColor: Theme.colors.textMuted,
       tabBarStyle: {
         backgroundColor: Theme.colors.surface,

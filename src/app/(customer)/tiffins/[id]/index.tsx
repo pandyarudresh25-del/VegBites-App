@@ -51,7 +51,7 @@ export default function VendorMenuScreen() {
           <TouchableOpacity 
             style={styles.buildThaliCard} 
             activeOpacity={0.8}
-            onPress={() => router.push(`/customer/tiffins/${id}/thali` as any)}
+            onPress={() => router.push(`/tiffins/${id}/thali` as any)}
           >
             <View style={styles.buildThaliContent}>
                <AppText variant="h2" style={{marginBottom: 4}}>{t('vendor.buildYourThali')}</AppText>
@@ -60,7 +60,7 @@ export default function VendorMenuScreen() {
                </AppText>
                <AppButton 
                  title={t('vendor.buildNow')} 
-                 onPress={() => router.push(`/customer/tiffins/${id}/thali` as any)} 
+                 onPress={() => router.push(`/tiffins/${id}/thali` as any)} 
                  style={styles.buildButton}
                />
             </View>
@@ -169,7 +169,7 @@ const styles = StyleSheet.create({
   },
   buildThaliCard: {
     flexDirection: 'row',
-    backgroundColor: '#FFF0DE', // Light peach/orange matching brand
+    backgroundColor: Theme.colors.surfaceHighlight, // Light peach/orange matching brand
     marginHorizontal: Theme.spacing.xl,
     borderRadius: Theme.borderRadius.xl,
     overflow: 'hidden',

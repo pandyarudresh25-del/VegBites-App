@@ -1,0 +1,109 @@
+# VegBites — Audit Findings (pre-change)
+
+**Audited by:** Arena Agent · **Date:** 2026-10-13
+**Repo:** `github.com/pandyarudresh25-del/VegBites-App` @ `a7868b9` (branch `main`)
+**Method:** real clone, real `npm install`, real build/typecheck, static source audit.
+**Rule applied:** nothing below is reported unless a command in `EVIDENCE` produced it.
+
+---
+
+## 0. Commands actually run (raw evidence)
+
+| # | Command | Result |
+|---|---|---|
+| 1 | `git clone https://github.com/pandyarudresh25-del/VegBites-App.git` | ✅ exit 0 · 111 files · single branch `main` @ `a7868b9` |
+| 2 | `npm install --no-audit --no-fund` | ✅ exit 0 · 842 packages · 13s |
+| 3 | `npx tsc --noEmit` | ✅ **exit 0 · 0 errors** |
+| 4 | `CI=1 npx expo export --platform web` | ✅ exit 0 · **89 static routes** rendered, 4.7MB bundle |
+| 5 | icon export-surface check vs `lucide-react-native@1.33.0` entry `.d.ts` | ✅ all 63 imported names resolve |
+| 6 | i18n key parity (node + `typescript` transpile) | ✅ en 137 = gu 137, 0 missing, 0 used-but-undefined |
+| 7 | palette grep for the 8 mandated colours | ❌ **0 of 8 present anywhere in `src/`** |
+| 8 | hardcoded-hex scan outside `src/theme` | ❌ **16 files** |
+| 9 | nav-target vs route-manifest audit | ❌ **5 broken targets** |
+| 10 | state-architecture audit (`createContext`) | ❌ **only 1 context (language)** |
+
+### Corrections to my own earlier (wrong) results
+- An earlier icon scan reported "63 missing icons". **That was a bug in my test**, not the app: I probed for `.js` files while lucide ships `.mjs`, and my import-parser mangled aliased imports (`Image as ImageIcon`). Corrected in row 5 — **icons are fine**. Retracted.
+- An earlier `npx tsc --noEmit` "failure" came from a *different, stale* folder that had no `tsconfig.json`. Against this repo, tsc passes clean.
+
+---
+
+## 1. What is genuinely working (do not "fix")
+
+- **Build & routing skeleton.** All 89 routes export; Expo Router config is valid; `output: static` works.
+- **TypeScript.** `strict: true`, 0 errors.
+- **Localization coverage.** 137 keys, exact en/gu parity; every `t('…')` key used in the app is defined. `LanguageContext` persists to AsyncStorage (`@vegbites/language`) with English fallback.
+- **Design-system primitives exist** (`AppText`, `AppButton`, `AppCard`, `AppPressable`) and animations use Reanimated correctly.
+- **Assets are local** (no remote URLs).
+
+---
+
+## 2. Problems found (the actual work)
+
+### P1 — 🔴 CRITICAL: no application state; every journey is a mock
+`src/context/` contains **only** `LanguageContext`. There is no cart, order, auth, wallet or subscription store.
+
+Consequences (verified by reading the screens):
+- `cart.tsx` renders a module-level constant `CART_ITEMS` (Gujarati Thali / Buttermilk / Papad) with a **hardcoded bill** (`deliveryFee = 30, platformFee = 5, taxes = 12, discount = 15`). It does not use `computeBill()` and cannot receive items from any other screen. **No add / remove / quantity controls and no empty state.**
+- `checkout.tsx` hardcodes the address (`B-402, Shivam Apartment, Vastrapur, **Ahmedabad**` — wrong city for a Rajkot product), hardcodes the 3-line summary and a hardcoded **₹155** total that ignores the cart. The "map preview" is literally `gujarati_thali.jpg`.
+- `payments.tsx` hardcodes 6 methods with hardcoded English labels, then `Pay Now` → `order-confirmation` **without creating an order, without a processing state, and with no failure path**.
+- `orders.tsx` renders hardcoded `ACTIVE_ORDERS` / `PAST_ORDERS` constants.
+- Net effect: **Cart → Checkout → Payment → Tracking → Orders cannot work as a journey**, because no screen can see another's data. This is the root cause of "incomplete interactions / missing functionality".
+
+### P2 — 🔴 CRITICAL: 5 navigation calls target routes that do not exist
+Route groups (`(customer)`, `(vendor)`) are **not** URL segments, yet the code pushes the literal string `customer` / `vendor`:
+
+| File | Broken target |
+|---|---|
+| `(customer)/restaurants.tsx` | `/customer/restaurant/${id}` |
+| `(customer)/tiffins/[id]/index.tsx` | `/customer/tiffins/${id}/thali` |
+| `(customer)/tiffins/[id]/plans.tsx` | `/customer/tiffins/${id}/thali` |
+| `(customer)/tiffins/vendors.tsx` | `/customer/tiffins/${vendor.id}/thali` |
+| `(vendor)/orders.tsx` | `/vendor/order/${id}` |
+
+Evidence: the export manifest emits `/restaurants` **and** `/(customer)/restaurants`, but **no `/customer/restaurants`**. So these `push()` calls resolve to the unmatched route. Each is cast `as any`, which is exactly why `tsc` never caught them.
+
+### P3 — 🔴 HIGH: bottom navigation hides the two core journeys
+`(customer)/_layout.tsx` exposes 5 tabs: **Home, Reels, Orders, Cart, Profile**. `tiffins/*` and `restaurants` — the Tiffin and Restaurant journeys the brief calls out first — are registered `href: null`, i.e. **unreachable from the bottom bar**. The tab bar is also **not localized** (titles are raw English literals).
+
+### P4 — 🔴 HIGH: the mandated palette is 100% absent
+Of `#E85D24 · #C84A18 · #287849 · #FBF8F2 · #FFFFFF · #F4ECE1 · #2B211C · #786A60`, **only `#FFFFFF` exists** (in 6 files). The live theme uses an entirely different set (`#F67B25`, `#221A14`, `#6B5E55`, `#FFFBF5`, `#F9F1E6`, …). Additionally **16 files hardcode hex colours** outside the theme, bypassing it entirely:
+
+`(auth)/language` · `(customer)/chat` · `loyalty` · `notifications` · `order-confirmation` · `settings` · `subscription` (8 hex) · `support` · `tiffins/[id]/index` · `tracking/[id]` · `wallet` · `(delivery)/_layout` · `(delivery)/delivery/[id]` · `(vendor)/earnings` · `(vendor)/order/[id]` · `components/AppButton`
+
+### P5 — 🟠 MEDIUM: dead / non-interactive UI
+- `orders.tsx` **Reorder** button has no `onPress` at all.
+- `login.tsx` social buttons are plain `<View>`s (Google / Apple do nothing).
+- `cart.tsx` "Apply coupon" row is a `TouchableOpacity` with no handler.
+- 12 screens have **no outgoing navigation** (`wallet`, `subscription`, `reviews`, `loyalty`, `notifications`, `chat`, `reels`, `restaurant/item`, …) — several are legitimate leaves, but the cluster signals "rendered, not wired".
+
+### P6 — 🟠 MEDIUM: localization has holes despite the claims
+`VEGBITES_VISUAL_QA_HANDOFF.md` states *"No hardcoded English strings remain in major components."* Not true:
+- `payments.tsx`: `"Payment Methods"`, `"Pay Now"`, all 6 method labels.
+- `orders.tsx`: `"On the Way"`, `"Delivered"` statuses and `"Today, 12:30 PM"`-style dates.
+- `checkout.tsx`: `"Home"` address label.
+- `cart.tsx` / others: item names are English-only literals.
+- No number/date/currency formatter exists (`₹{value}` interpolated by hand);
+  `checkout.morningTime` / `eveningTime` are identical in both languages.
+
+### P7 — 🟠 MEDIUM: tracking is presentational
+`(customer)/tracking/[id].tsx` (321 lines) reads the `id` param but has no state machine and no timer: it cannot progress Placed → Confirmed → Preparing → Packed → Picked up → Out for delivery → Delivered. Requires P1's store to become genuinely "LIVE".
+
+### P8 — 🟡 LOW: stale / contradictory documentation
+- `VEGBITES_VISUAL_QA_HANDOFF.md`: *"Vendor and Delivery Boy Apps are strictly NOT started."* **False** — `(vendor)/` has 9 route files, `(delivery)/` has 5.
+- `VEGBITES_IMPLEMENTATION_STATUS.md`: 31/31 screens marked ✅ for Implemented/Connected/Localized/Responsive/Animated — contradicted by P1–P7. (Visual QA column is honestly ⏳ for all.)
+- `app.json`: splash `backgroundColor: #208AEF` (stock Expo blue) and `adaptiveIcon.backgroundColor: #E6F4FE` — neither belongs to the brand palette. `userInterfaceStyle: "automatic"` while the theme is light-only.
+- Stock leftovers tracked in the repo: `react-logo*.png`, `expo-logo.png`, `expo-badge*.png`, `tutorial-web.png`, `assets/expo.icon/`, `scripts/reset-project.js`, `fix_images.py`.
+
+---
+
+## 3. Priority order for the fix
+
+1. **Store** — one typed global store (auth, cart, orders, wallet, subscriptions, reviews) persisted per-user. Everything else depends on it.
+2. **Palette + theme** — swap to the 8 mandated colours, delete every hardcoded hex, add real type/spacing/radius scales.
+3. **Navigation** — fix the 5 broken pushes; rebuild the bottom bar around Home · Tiffin · Restaurants · Cart · Profile, localized, with a live cart badge.
+4. **Journeys** — cart edit/empty, checkout from real cart, payment state machine (processing → success/failure → order creation), LIVE tracking timer, orders/reorder/rate, wallet, subscriptions.
+5. **Localization** — move the remaining literals into en/gu; add currency/date/number formatters.
+6. **Then** Vendor, then Delivery. No Admin.
+
+Nothing in sections 1–2 above is inferred; each item maps to a command in section 0.

@@ -1,196 +1,345 @@
-import React from 'react';
-import { View, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, Image } from 'react-native';
+import React, { useState } from 'react';
+import { View, StyleSheet, Pressable, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
 import Animated, { FadeInDown } from 'react-native-reanimated';
+import { ArrowLeft, Briefcase, Check, Home as HomeIcon, MapPin, Plus, X } from 'lucide-react-native';
 import { AppText } from '../../components/AppText';
+import { AppButton } from '../../components/AppButton';
+import { AppScrollScreen, ScreenHeader, EmptyState } from '../../components/AppScreen';
 import { Theme } from '../../theme';
-import { ArrowLeft, MapPin, Home, Briefcase, Plus } from 'lucide-react-native';
 import { useLanguage } from '../../context/LanguageContext';
+import { useAppStore } from '../../store/AppStore';
+import type { AddressLabel } from '../../domain/types';
 
-const SAVED_ADDRESSES = [
-  { id: '1', type: 'Home', address: 'B-402, Shivam Apartment, Vastrapur, Ahmedabad', isDefault: true },
-  { id: '2', type: 'Office', address: '101, Titanium City Center, Satellite, Ahmedabad', isDefault: false },
-];
+type FormState = {
+  label: AddressLabel;
+  name: string;
+  phone: string;
+  line1: string;
+  line2: string;
+  city: string;
+  pincode: string;
+};
 
+const EMPTY_FORM: FormState = {
+  label: 'home',
+  name: '',
+  phone: '',
+  line1: '',
+  line2: '',
+  city: 'Rajkot',
+  pincode: '',
+};
+
+const LABEL_ICON: Record<AddressLabel, typeof HomeIcon> = {
+  home: HomeIcon,
+  work: Briefcase,
+  other: MapPin,
+};
+
+/**
+ * Saved addresses. Selecting one sets it as default, which is what checkout
+ * reads. The add form validates each field and writes to the store.
+ */
 export default function AddressScreen() {
   const router = useRouter();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const { addresses, selectedAddress, addAddress, selectAddress } = useAppStore();
+
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState<FormState>(EMPTY_FORM);
+  const [errors, setErrors] = useState<Partial<Record<keyof FormState, boolean>>>({});
+  const [toast, setToast] = useState<string | null>(null);
+
+  const label = (en: string, gu: string) => (language === 'gu' ? gu : en);
+  const set = <K extends keyof FormState>(key: K, value: FormState[K]) => {
+    setForm((prev) => ({ ...prev, [key]: value }));
+    setErrors((prev) => ({ ...prev, [key]: false }));
+  };
+
+  const validate = () => {
+    const next: Partial<Record<keyof FormState, boolean>> = {};
+    if (!form.name.trim()) next.name = true;
+    if (form.phone.replace(/\D/g, '').length !== 10) next.phone = true;
+    if (!form.line1.trim()) next.line1 = true;
+    if (!form.line2.trim()) next.line2 = true;
+    if (!form.city.trim()) next.city = true;
+    if (form.pincode.replace(/\D/g, '').length !== 6) next.pincode = true;
+    setErrors(next);
+    return Object.keys(next).length === 0;
+  };
+
+  const handleSave = () => {
+    if (!validate()) return;
+    addAddress({
+      label: form.label,
+      name: form.name.trim(),
+      phone: form.phone.replace(/\D/g, ''),
+      line1: form.line1.trim(),
+      line2: form.line2.trim(),
+      city: form.city.trim(),
+      pincode: form.pincode.replace(/\D/g, ''),
+      isDefault: true,
+    });
+    setForm(EMPTY_FORM);
+    setShowForm(false);
+    setToast(t('screens.address.saved'));
+    setTimeout(() => setToast(null), 2000);
+  };
+
+  const labelText = (key: AddressLabel) =>
+    t(key === 'work' ? 'address.office' : key === 'home' ? 'address.home' : 'address.default');
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <ArrowLeft size={24} color={Theme.colors.text} />
-        </TouchableOpacity>
-        <AppText variant="h2" style={styles.headerTitle}>{t('address.title')}</AppText>
-        <View style={{ width: 40 }} />
-      </View>
-
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-        
-        {/* Map Placeholder for Current Location */}
-        <Animated.View entering={FadeInDown.duration(400).springify()}>
-           <TouchableOpacity activeOpacity={0.8} onPress={() => router.replace('/(customer)/home')} style={styles.mapContainer}>
-             <Image source={require('../../../assets/images/gujarati_thali.jpg')} style={styles.mapImage} />
-             <View style={styles.mapOverlay}>
-               <View style={styles.currentLocationPill}>
-                  <MapPin size={16} color={Theme.colors.primary} style={{marginRight: 6}} />
-                  <AppText variant="h3" color={Theme.colors.primary}>{t('address.useCurrentLocation')}</AppText>
-               </View>
-             </View>
-           </TouchableOpacity>
+    <View style={{ flex: 1, backgroundColor: Theme.colors.background }}>
+      {toast ? (
+        <Animated.View entering={FadeInDown.duration(Theme.motion.fast)} style={styles.toast}>
+          <AppText variant="bodySmall" color={Theme.colors.surface}>
+            {toast}
+          </AppText>
         </Animated.View>
+      ) : null}
 
-        <Animated.View entering={FadeInDown.delay(200).springify()} style={styles.section}>
-          <AppText variant="h3" style={styles.sectionTitle}>{t('address.savedAddresses')}</AppText>
-          
-          <View style={styles.addressList}>
-             {SAVED_ADDRESSES.map((address, index) => (
-                <TouchableOpacity key={address.id} activeOpacity={0.7} onPress={() => router.replace('/(customer)/home')} style={[styles.addressCard, address.isDefault && styles.defaultCard]}>
-                   <View style={styles.addressIconContainer}>
-                      {address.type === 'Home' ? <Home size={20} color={Theme.colors.primary} /> : <Briefcase size={20} color={Theme.colors.primary} />}
-                   </View>
-                   <View style={styles.addressInfo}>
-                      <View style={{flexDirection: 'row', alignItems: 'center', marginBottom: 4}}>
-                        <AppText variant="h3">{address.type === 'Home' ? t('address.home') : t('address.office')}</AppText>
-                        {address.isDefault && (
-                          <View style={styles.defaultBadge}>
-                             <AppText variant="caption" color="#fff" style={{fontSize: 10, fontWeight: 'bold'}}>{t('address.default')}</AppText>
-                          </View>
-                        )}
-                      </View>
-                      <AppText variant="bodySmall" color={Theme.colors.textSecondary}>{address.address}</AppText>
-                   </View>
-                </TouchableOpacity>
-             ))}
-          </View>
-        </Animated.View>
+      <AppScrollScreen contentStyle={{ gap: Theme.spacing.md }}>
+        <ScreenHeader
+          title={t('profile.savedAddresses')}
+          left={
+            <Pressable onPress={() => router.back()} hitSlop={12} accessibilityLabel={t('common.back')}>
+              <ArrowLeft size={22} color={Theme.colors.text} />
+            </Pressable>
+          }
+          right={
+            <Pressable
+              onPress={() => setShowForm((s) => !s)}
+              hitSlop={10}
+              accessibilityLabel={t('screens.address.addNew')}
+            >
+              {showForm ? <X size={20} color={Theme.colors.textSecondary} /> : <Plus size={20} color={Theme.colors.primary} />}
+            </Pressable>
+          }
+        />
 
-      </ScrollView>
+        {/* ---- add form ---- */}
+        {showForm ? (
+          <Animated.View entering={FadeInDown.duration(Theme.motion.fast)} style={styles.card}>
+            <AppText variant="h3">{t('screens.address.addNew')}</AppText>
 
-      <Animated.View entering={FadeInDown.delay(400).springify()} style={styles.footer}>
-        <TouchableOpacity style={styles.addButton} activeOpacity={0.8}>
-           <Plus size={20} color="#fff" style={{marginRight: 8}} />
-           <AppText variant="button">{t('address.addNewAddress')}</AppText>
-        </TouchableOpacity>
-      </Animated.View>
-    </SafeAreaView>
+            {/* label chooser */}
+            <View style={styles.labelRow}>
+              {(['home', 'work', 'other'] as AddressLabel[]).map((key) => {
+                const Icon = LABEL_ICON[key];
+                const active = form.label === key;
+                return (
+                  <Pressable
+                    key={key}
+                    onPress={() => set('label', key)}
+                    style={[styles.labelChip, active && styles.labelChipActive]}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: active }}
+                  >
+                    <Icon size={14} color={active ? Theme.colors.surface : Theme.colors.textSecondary} />
+                    <AppText variant="caption" color={active ? Theme.colors.surface : Theme.colors.textSecondary}>
+                      {labelText(key)}
+                    </AppText>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            <Field
+              label={t('screens.address.fullName')}
+              value={form.name}
+              onChangeText={(v) => set('name', v)}
+              invalid={errors.name}
+            />
+            <Field
+              label={t('screens.address.phone')}
+              value={form.phone}
+              onChangeText={(v) => set('phone', v.replace(/\D/g, '').slice(0, 10))}
+              invalid={errors.phone}
+              keyboardType="number-pad"
+            />
+            <Field
+              label={t('screens.address.line1')}
+              value={form.line1}
+              onChangeText={(v) => set('line1', v)}
+              invalid={errors.line1}
+            />
+            <Field
+              label={t('screens.address.line2')}
+              value={form.line2}
+              onChangeText={(v) => set('line2', v)}
+              invalid={errors.line2}
+            />
+            <View style={styles.twoUp}>
+              <View style={{ flex: 1 }}>
+                <Field
+                  label={t('screens.address.city')}
+                  value={form.city}
+                  onChangeText={(v) => set('city', v)}
+                  invalid={errors.city}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Field
+                  label={t('screens.address.pincode')}
+                  value={form.pincode}
+                  onChangeText={(v) => set('pincode', v.replace(/\D/g, '').slice(0, 6))}
+                  invalid={errors.pincode}
+                  keyboardType="number-pad"
+                />
+              </View>
+            </View>
+
+            <AppButton title={t('screens.address.saveAddress')} onPress={handleSave} />
+          </Animated.View>
+        ) : null}
+
+        {/* ---- saved list ---- */}
+        {addresses.length === 0 ? (
+          <EmptyState
+            icon={<MapPin size={28} color={Theme.colors.primary} />}
+            title={t('screens.address.noSaved')}
+            body={t('screens.address.noSavedHint')}
+            action={<AppButton title={t('screens.address.addNew')} onPress={() => setShowForm(true)} />}
+          />
+        ) : (
+          addresses.map((address, index) => {
+            const Icon = LABEL_ICON[address.label];
+            const active = selectedAddress?.id === address.id;
+            return (
+              <Animated.View key={address.id} entering={FadeInDown.delay(index * 50).duration(Theme.motion.base)}>
+                <Pressable
+                  onPress={() => selectAddress(address.id)}
+                  style={[styles.addressCard, active && styles.addressCardActive]}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: active }}
+                >
+                  <View style={[styles.iconBubble, active && styles.iconBubbleActive]}>
+                    <Icon size={16} color={active ? Theme.colors.surface : Theme.colors.primary} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <View style={styles.titleRow}>
+                      <AppText variant="h3">{labelText(address.label)}</AppText>
+                      {active ? (
+                        <View style={styles.defaultTag}>
+                          <AppText variant="caption" color={Theme.colors.success}>
+                            {t('address.default')}
+                          </AppText>
+                        </View>
+                      ) : null}
+                    </View>
+                    <AppText variant="bodySmall" style={{ marginTop: 2 }}>
+                      {address.line1}, {address.line2}
+                    </AppText>
+                    <AppText variant="bodySmall">
+                      {address.city} – {address.pincode}
+                    </AppText>
+                    <AppText variant="caption" style={{ marginTop: 2 }}>
+                      {address.name} · +91 {address.phone}
+                    </AppText>
+                  </View>
+                  {active ? <Check size={16} color={Theme.colors.success} strokeWidth={3} /> : null}
+                </Pressable>
+              </Animated.View>
+            );
+          })
+        )}
+      </AppScrollScreen>
+    </View>
   );
 }
 
+const Field: React.FC<{
+  label: string;
+  value: string;
+  onChangeText: (value: string) => void;
+  invalid?: boolean;
+  keyboardType?: 'default' | 'number-pad';
+}> = ({ label, value, onChangeText, invalid, keyboardType = 'default' }) => (
+  <View style={{ gap: 4 }}>
+    <AppText variant="caption">{label}</AppText>
+    <TextInput
+      value={value}
+      onChangeText={onChangeText}
+      keyboardType={keyboardType}
+      inputMode={keyboardType === 'number-pad' ? 'numeric' : 'text'}
+      placeholderTextColor={Theme.colors.textMuted}
+      placeholder={label}
+      style={[styles.input, invalid && styles.inputInvalid]}
+    />
+  </View>
+);
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Theme.colors.background,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: Theme.spacing.lg,
-    paddingVertical: Theme.spacing.md,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    fontSize: 20,
-  },
-  content: {
-    paddingHorizontal: Theme.spacing.xl,
-    paddingTop: Theme.spacing.md,
-    paddingBottom: Theme.spacing.xxl,
-  },
-  mapContainer: {
-    height: 200,
+  card: {
+    backgroundColor: Theme.colors.surface,
     borderRadius: Theme.borderRadius.xl,
-    overflow: 'hidden',
-    marginBottom: Theme.spacing.xl,
-    position: 'relative',
+    padding: Theme.spacing.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Theme.colors.border,
+    gap: Theme.spacing.md,
+    ...Theme.shadows.soft,
+  },
+  labelRow: { flexDirection: 'row', gap: Theme.spacing.sm },
+  labelChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: Theme.spacing.md,
+    height: 34,
+    borderRadius: Theme.borderRadius.pill,
     borderWidth: 1,
     borderColor: Theme.colors.border,
   },
-  mapImage: {
-    width: '100%',
-    height: '100%',
+  labelChipActive: { backgroundColor: Theme.colors.primary, borderColor: Theme.colors.primary },
+  input: {
+    height: 46,
+    borderRadius: Theme.borderRadius.md,
+    backgroundColor: Theme.colors.surfaceSecondary,
+    paddingHorizontal: Theme.spacing.md,
+    fontSize: 14,
+    fontWeight: '600',
+    color: Theme.colors.text,
   },
-  mapOverlay: {
-    position: 'absolute',
-    bottom: Theme.spacing.lg,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-  },
-  currentLocationPill: {
+  inputInvalid: { borderWidth: 1.5, borderColor: Theme.colors.error },
+  twoUp: { flexDirection: 'row', gap: Theme.spacing.md },
+  addressCard: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    gap: Theme.spacing.md,
     backgroundColor: Theme.colors.surface,
+    borderRadius: Theme.borderRadius.xl,
+    padding: Theme.spacing.lg,
+    borderWidth: 1.5,
+    borderColor: Theme.colors.border,
+    ...Theme.shadows.soft,
+  },
+  addressCardActive: { borderColor: Theme.colors.success },
+  iconBubble: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: Theme.colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconBubbleActive: { backgroundColor: Theme.colors.success },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: Theme.spacing.sm },
+  defaultTag: {
+    backgroundColor: Theme.colors.successSoft,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: Theme.borderRadius.sm,
+  },
+  toast: {
+    position: 'absolute',
+    top: Theme.spacing.huge,
+    alignSelf: 'center',
+    zIndex: 10,
+    backgroundColor: Theme.colors.text,
     paddingHorizontal: Theme.spacing.lg,
     paddingVertical: Theme.spacing.sm,
     borderRadius: Theme.borderRadius.pill,
-    shadowColor: Theme.colors.text,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 4,
   },
-  section: {
-    marginBottom: Theme.spacing.xl,
-  },
-  sectionTitle: {
-    marginBottom: Theme.spacing.md,
-  },
-  addressList: {
-    gap: Theme.spacing.md,
-  },
-  addressCard: {
-    flexDirection: 'row',
-    backgroundColor: Theme.colors.surface,
-    padding: Theme.spacing.lg,
-    borderRadius: Theme.borderRadius.xl,
-    borderWidth: 1,
-    borderColor: Theme.colors.border,
-  },
-  defaultCard: {
-    borderColor: Theme.colors.primary,
-    backgroundColor: Theme.colors.surfaceHighlight, // Light peach
-  },
-  addressIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Theme.colors.surface,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: Theme.spacing.md,
-    borderWidth: 1,
-    borderColor: Theme.colors.border,
-  },
-  addressInfo: {
-    flex: 1,
-  },
-  defaultBadge: {
-    backgroundColor: Theme.colors.primary,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    marginLeft: Theme.spacing.sm,
-  },
-  footer: {
-    padding: Theme.spacing.xl,
-    paddingBottom: Theme.spacing.xxl,
-    backgroundColor: Theme.colors.surface,
-    borderTopWidth: 1,
-    borderTopColor: Theme.colors.border,
-  },
-  addButton: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: Theme.colors.text, // Using dark color for high contrast CTA
-    height: 56,
-    borderRadius: Theme.borderRadius.pill,
-  }
 });

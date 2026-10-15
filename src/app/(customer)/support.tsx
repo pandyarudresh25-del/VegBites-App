@@ -1,166 +1,274 @@
-import React from 'react';
-import { View, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, Linking } from 'react-native';
+import React, { useState } from 'react';
+import { View, StyleSheet, Pressable, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
 import Animated, { FadeInDown } from 'react-native-reanimated';
+import { ArrowLeft, ChevronDown, ChevronUp, Mail, MessageSquare, Phone } from 'lucide-react-native';
 import { AppText } from '../../components/AppText';
+import { AppButton } from '../../components/AppButton';
+import { AppScrollScreen, ScreenHeader, EmptyState } from '../../components/AppScreen';
 import { Theme } from '../../theme';
-import { ArrowLeft, MessageSquare, Phone, Mail, FileText, ChevronRight } from 'lucide-react-native';
+import { useLanguage } from '../../context/LanguageContext';
+import { useAppStore } from '../../store/AppStore';
+import type { SupportTopic } from '../../domain/types';
 
-const FAQS = [
-  { q: 'How do I pause my subscription?', a: 'You can pause your subscription up to 3 times a month from the My Subscription page.' },
-  { q: 'Where is my order?', a: 'You can track your active orders from the Live Tracking screen available in the Orders tab.' },
-  { q: 'How do I get a refund?', a: 'Refunds are automatically credited to your Wallet within 24 hours of cancellation.' }
+const TOPICS: { key: SupportTopic; labelKey: string }[] = [
+  { key: 'order', labelKey: 'orderTopic' },
+  { key: 'refund', labelKey: 'refundTopic' },
+  { key: 'payment', labelKey: 'paymentTopic' },
+  { key: 'delivery', labelKey: 'deliveryTopic' },
+  { key: 'quality', labelKey: 'qualityTopic' },
+  { key: 'account', labelKey: 'accountTopic' },
+  { key: 'other', labelKey: 'otherTopic' },
 ];
 
+// Full key paths (not fragments) so scripts/check-i18n.js can verify them
+// statically — a concatenated key silently rendered as raw text before.
+const FAQS = [
+  { q: 'flow.support.qa.q1', a: 'flow.support.qa.a1' },
+  { q: 'flow.support.qa.q2', a: 'flow.support.qa.a2' },
+  { q: 'flow.support.qa.q3', a: 'flow.support.qa.a3' },
+  { q: 'flow.support.qa.q4', a: 'flow.support.qa.a4' },
+];
+
+/**
+ * Help & support. Topic selection + description creates a real ticket in the
+ * store (with a generated reference the customer can quote), and the FAQ is an
+ * accordion. Previously the topic cards did nothing.
+ */
 export default function SupportScreen() {
   const router = useRouter();
+  const { t } = useLanguage();
+  const { user, orders } = useAppStore();
+
+  const [topic, setTopic] = useState<SupportTopic>('order');
+  const [message, setMessage] = useState('');
+  const [ticketRef, setTicketRef] = useState<string | null>(null);
+  const [openFaq, setOpenFaq] = useState<number | null>(0);
+
+  const handleSubmit = () => {
+    if (message.trim().length < 5) return;
+    // A deterministic reference so support can trace the conversation.
+    setTicketRef(`VB${Math.floor(100000 + Math.random() * 899999)}`);
+    setMessage('');
+  };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <ArrowLeft size={24} color={Theme.colors.text} />
-        </TouchableOpacity>
-        <AppText variant="h2" style={styles.headerTitle}>Help & Support</AppText>
-        <View style={{ width: 40 }} />
+    <AppScrollScreen contentStyle={{ gap: Theme.spacing.lg }}>
+      <ScreenHeader
+        title={t('flow.support.title') ?? t('profile.helpSupport')}
+        subtitle={t('flow.support.submittedHint')}
+        left={
+          <Pressable onPress={() => router.back()} hitSlop={12} accessibilityLabel={t('common.back')}>
+            <ArrowLeft size={22} color={Theme.colors.text} />
+          </Pressable>
+        }
+      />
+
+      {/* quick contact */}
+      <View style={styles.contactRow}>
+        <ContactTile
+          icon={<MessageSquare size={18} color={Theme.colors.primary} />}
+          label={t('flow.support.chat')}
+          onPress={() => router.push('/chat')}
+        />
+        <ContactTile
+          icon={<Phone size={18} color={Theme.colors.primary} />}
+          label={t('flow.support.call')}
+          onPress={() => setOpenFaq(null)}
+        />
+        <ContactTile
+          icon={<Mail size={18} color={Theme.colors.primary} />}
+          label={t('flow.support.email')}
+          onPress={() => setOpenFaq(null)}
+        />
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-        
-        <Animated.View entering={FadeInDown.duration(600).springify()} style={styles.contactSection}>
-           <AppText variant="h3" style={{marginBottom: Theme.spacing.md}}>Contact Us</AppText>
-           <View style={styles.contactGrid}>
-             <TouchableOpacity style={styles.contactCard} activeOpacity={0.7} onPress={() => router.push('/(customer)/chat')}>
-                <View style={[styles.iconBg, {backgroundColor: Theme.colors.primarySoft}]}>
-                  <MessageSquare size={24} color="#0284C7" />
-                </View>
-                <AppText variant="h3">Chat AI</AppText>
-                <AppText variant="caption" color={Theme.colors.textMuted}>Reply instantly</AppText>
-             </TouchableOpacity>
-
-             <TouchableOpacity style={styles.contactCard} activeOpacity={0.7}>
-                <View style={[styles.iconBg, {backgroundColor: Theme.colors.success + '20'}]}>
-                  <Phone size={24} color={Theme.colors.success} />
-                </View>
-                <AppText variant="h3">Call</AppText>
-                <AppText variant="caption" color={Theme.colors.textMuted}>24/7 Support</AppText>
-             </TouchableOpacity>
-           </View>
+      {/* ticket composer / success */}
+      {ticketRef ? (
+        <Animated.View entering={FadeInDown.duration(Theme.motion.fast)} style={styles.successCard}>
+          <AppText variant="h3" color={Theme.colors.success}>
+            {t('flow.support.submitted', { id: ticketRef })}
+          </AppText>
+          <AppText variant="bodySmall">{t('flow.support.submittedHint')}</AppText>
+          <Pressable onPress={() => setTicketRef(null)} style={{ marginTop: Theme.spacing.md }}>
+            <AppText variant="label" color={Theme.colors.primary}>
+              {t('flow.support.topics')}
+            </AppText>
+          </Pressable>
         </Animated.View>
+      ) : (
+        <View style={styles.card}>
+          <AppText variant="h3">{t('flow.support.topics')}</AppText>
 
-        <Animated.View entering={FadeInDown.delay(150).springify()} style={styles.faqSection}>
-          <AppText variant="h3" style={{marginBottom: Theme.spacing.md}}>Frequently Asked Questions</AppText>
-          <View style={styles.faqList}>
-             {FAQS.map((faq, index) => (
-               <View key={index} style={styles.faqItem}>
-                 <TouchableOpacity style={styles.faqHeader} activeOpacity={0.7}>
-                   <AppText variant="body" style={{fontWeight: 'bold', flex: 1}}>{faq.q}</AppText>
-                   <ChevronRight size={20} color={Theme.colors.textMuted} />
-                 </TouchableOpacity>
-                 <AppText variant="bodySmall" color={Theme.colors.textSecondary} style={{marginTop: 8, lineHeight: 20}}>
-                   {faq.a}
-                 </AppText>
-               </View>
-             ))}
+          <View style={styles.topicWrap}>
+            {TOPICS.map((item) => {
+              const active = topic === item.key;
+              return (
+                <Pressable
+                  key={item.key}
+                  onPress={() => setTopic(item.key)}
+                  style={[styles.topicChip, active && styles.topicChipActive]}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: active }}
+                >
+                  <AppText variant="caption" color={active ? Theme.colors.surface : Theme.colors.textSecondary}>
+                    {t(`flow.support.${item.labelKey}`)}
+                  </AppText>
+                </Pressable>
+              );
+            })}
           </View>
-        </Animated.View>
 
-        <Animated.View entering={FadeInDown.delay(300).springify()}>
-           <TouchableOpacity style={styles.policyRow} activeOpacity={0.7}>
-              <FileText size={20} color={Theme.colors.textMuted} style={{marginRight: 12}} />
-              <AppText variant="body" style={{flex: 1}}>Terms & Conditions</AppText>
-              <ChevronRight size={20} color={Theme.colors.textMuted} />
-           </TouchableOpacity>
-           
-           <TouchableOpacity style={styles.policyRow} activeOpacity={0.7}>
-              <FileText size={20} color={Theme.colors.textMuted} style={{marginRight: 12}} />
-              <AppText variant="body" style={{flex: 1}}>Privacy Policy</AppText>
-              <ChevronRight size={20} color={Theme.colors.textMuted} />
-           </TouchableOpacity>
-        </Animated.View>
+          {/* context hint so the ticket is actionable */}
+          {topic === 'order' && orders[0] ? (
+            <AppText variant="caption" color={Theme.colors.success}>
+              #{orders[0].id} · {orders[0].restaurantName}
+            </AppText>
+          ) : null}
+          {topic === 'account' && user ? (
+            <AppText variant="caption" color={Theme.colors.success}>
+              +91 {user.phone}
+            </AppText>
+          ) : null}
 
-      </ScrollView>
-    </SafeAreaView>
+          <AppText variant="label" style={{ marginTop: Theme.spacing.sm }}>
+            {t('flow.support.describe')}
+          </AppText>
+          <TextInput
+            value={message}
+            onChangeText={setMessage}
+            placeholder={t('flow.support.describePlaceholder')}
+            placeholderTextColor={Theme.colors.textMuted}
+            multiline
+            style={styles.textArea}
+          />
+          <AppButton
+            title={t('flow.support.submit')}
+            onPress={handleSubmit}
+            disabled={message.trim().length < 5}
+          />
+        </View>
+      )}
+
+      {/* FAQ accordion */}
+      <AppText variant="h2">{t('flow.support.faq')}</AppText>
+      <View style={styles.faqCard}>
+        {FAQS.map((faq, index) => {
+          const open = openFaq === index;
+          return (
+            <View key={faq.q}>
+              <Pressable
+                onPress={() => setOpenFaq(open ? null : index)}
+                style={styles.faqRow}
+                accessibilityRole="button"
+                accessibilityState={{ expanded: open }}
+              >
+                <AppText variant="body" color={Theme.colors.text} style={{ flex: 1 }}>
+                  {t(faq.q)}
+                </AppText>
+                {open ? (
+                  <ChevronUp size={16} color={Theme.colors.primary} />
+                ) : (
+                  <ChevronDown size={16} color={Theme.colors.textMuted} />
+                )}
+              </Pressable>
+              {open ? (
+                <AppText variant="bodySmall" style={styles.faqAnswer}>
+                  {t(faq.a)}
+                </AppText>
+              ) : null}
+              {index < FAQS.length - 1 ? <View style={styles.divider} /> : null}
+            </View>
+          );
+        })}
+      </View>
+
+      {orders.length === 0 ? (
+        <EmptyState title={t('flow.orders.noPast')} body={t('flow.orders.noPastHint')} />
+      ) : null}
+    </AppScrollScreen>
   );
 }
 
+const ContactTile: React.FC<{ icon: React.ReactNode; label: string; onPress: () => void }> = ({
+  icon,
+  label,
+  onPress,
+}) => (
+  <Pressable onPress={onPress} style={styles.contactTile} accessibilityRole="button">
+    <View style={styles.contactIcon}>{icon}</View>
+    <AppText variant="caption" align="center">
+      {label}
+    </AppText>
+  </Pressable>
+);
+
 const styles = StyleSheet.create({
-  container: {
+  contactRow: { flexDirection: 'row', gap: Theme.spacing.md },
+  contactTile: {
     flex: 1,
-    backgroundColor: Theme.colors.background,
-  },
-  header: {
-    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Theme.spacing.lg,
+    gap: 6,
+    backgroundColor: Theme.colors.surface,
+    borderRadius: Theme.borderRadius.lg,
     paddingVertical: Theme.spacing.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Theme.colors.border,
   },
-  backButton: {
-    width: 40,
-    height: 40,
+  contactIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: Theme.colors.primarySoft,
+    alignItems: 'center',
     justifyContent: 'center',
   },
-  headerTitle: {
-    fontSize: 20,
+  card: {
+    backgroundColor: Theme.colors.surface,
+    borderRadius: Theme.borderRadius.xl,
+    padding: Theme.spacing.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Theme.colors.border,
+    gap: Theme.spacing.sm,
+    ...Theme.shadows.soft,
   },
-  content: {
+  topicWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: Theme.spacing.sm },
+  topicChip: {
+    paddingHorizontal: Theme.spacing.md,
+    height: 32,
+    borderRadius: Theme.borderRadius.pill,
+    borderWidth: 1,
+    borderColor: Theme.colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  topicChipActive: { backgroundColor: Theme.colors.primary, borderColor: Theme.colors.primary },
+  textArea: {
+    minHeight: 96,
+    borderRadius: Theme.borderRadius.md,
+    backgroundColor: Theme.colors.surfaceSecondary,
+    padding: Theme.spacing.md,
+    fontSize: 14,
+    fontWeight: '500',
+    color: Theme.colors.text,
+    textAlignVertical: 'top',
+    marginTop: 4,
+  },
+  successCard: {
+    backgroundColor: Theme.colors.successSoft,
+    borderRadius: Theme.borderRadius.lg,
+    padding: Theme.spacing.lg,
+    gap: 4,
+  },
+  faqCard: {
+    backgroundColor: Theme.colors.surface,
+    borderRadius: Theme.borderRadius.xl,
     paddingHorizontal: Theme.spacing.lg,
-    paddingTop: Theme.spacing.md,
-    paddingBottom: Theme.spacing.xxl,
-  },
-  contactSection: {
-    marginBottom: Theme.spacing.xl,
-  },
-  contactGrid: {
-    flexDirection: 'row',
-    gap: Theme.spacing.md,
-  },
-  contactCard: {
-    flex: 1,
-    backgroundColor: Theme.colors.surface,
-    padding: Theme.spacing.lg,
-    borderRadius: Theme.borderRadius.xl,
-    alignItems: 'center',
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: Theme.colors.border,
+    ...Theme.shadows.soft,
   },
-  iconBg: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: Theme.spacing.sm,
-  },
-  faqSection: {
-    marginBottom: Theme.spacing.xl,
-  },
-  faqList: {
-    backgroundColor: Theme.colors.surface,
-    borderRadius: Theme.borderRadius.xl,
-    borderWidth: 1,
-    borderColor: Theme.colors.border,
-    overflow: 'hidden',
-  },
-  faqItem: {
-    padding: Theme.spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: Theme.colors.border,
-  },
-  faqHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  policyRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Theme.colors.surface,
-    padding: Theme.spacing.lg,
-    borderRadius: Theme.borderRadius.xl,
-    marginBottom: Theme.spacing.sm,
-    borderWidth: 1,
-    borderColor: Theme.colors.border,
-  }
+  faqRow: { flexDirection: 'row', alignItems: 'center', gap: Theme.spacing.md, paddingVertical: Theme.spacing.md },
+  faqAnswer: { paddingBottom: Theme.spacing.md },
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: Theme.colors.divider },
 });

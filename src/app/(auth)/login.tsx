@@ -1,184 +1,149 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, TextInput, SafeAreaView, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, StyleSheet, TextInput, Pressable, Platform } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import Animated, { FadeInDown, FadeInUp, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import Animated, { FadeInDown } from 'react-native-reanimated';
+import { ArrowLeft, ShieldCheck, Smartphone } from 'lucide-react-native';
 import { AppText } from '../../components/AppText';
 import { AppButton } from '../../components/AppButton';
+import { AppScrollScreen } from '../../components/AppScreen';
 import { Theme } from '../../theme';
 import { useLanguage } from '../../context/LanguageContext';
-import { Apple } from 'lucide-react-native';
 
+/**
+ * Phone entry. Validates the number before allowing the OTP step and passes
+ * both the phone and the requested role forward, so OTP can sign the user in
+ * and route them correctly.
+ */
 export default function LoginScreen() {
   const router = useRouter();
-  const { role } = useLocalSearchParams();
+  const { role } = useLocalSearchParams<{ role?: string }>();
   const { t } = useLanguage();
-  const [phone, setPhone] = useState('');
-  
-  // Focus animation
-  const isFocused = useSharedValue(false);
-  const borderAnimatedStyle = useAnimatedStyle(() => {
-    return {
-      borderColor: withSpring(isFocused.value ? Theme.colors.primary : Theme.colors.border),
-      borderWidth: withSpring(isFocused.value ? 2 : 1),
-    };
-  });
 
-  const handleSendOTP = () => {
-    if (phone.length >= 10) {
-      router.push({
-        pathname: '/(auth)/otp',
-        params: { role }
-      });
+  const [phone, setPhone] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  const digits = phone.replace(/\D/g, '');
+  const isValid = digits.length === 10 && /^[6-9]/.test(digits);
+
+  const handleSendOtp = () => {
+    if (!isValid) {
+      setError(t('flow.auth.invalidPhone'));
+      return;
     }
+    setError(null);
+    router.push({ pathname: '/(auth)/otp', params: { phone: digits, role: role ?? 'customer' } });
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.container}
+    <AppScrollScreen contentStyle={styles.content}>
+      <Pressable
+        onPress={() => router.back()}
+        hitSlop={12}
+        style={styles.back}
+        accessibilityLabel={t('common.back')}
       >
-        <View style={styles.content}>
-          
-          <Animated.View entering={FadeInDown.duration(600).springify()} style={styles.header}>
-            <AppText variant="h1" style={styles.title} align="center">
-              {t('login.title')}
-            </AppText>
-            <AppText variant="body" color={Theme.colors.textSecondary} align="center">
-              {t('login.subtitle')}
-            </AppText>
-          </Animated.View>
+        <ArrowLeft size={22} color={Theme.colors.text} />
+      </Pressable>
 
-          <View style={styles.formContainer}>
-            <Animated.View entering={FadeInDown.delay(100).duration(600).springify()}>
-              <Animated.View style={[styles.inputContainer, borderAnimatedStyle]}>
-                <View style={styles.countryCode}>
-                  <AppText variant="h3" color={Theme.colors.text}>+91</AppText>
-                </View>
-                <TextInput
-                  style={styles.input}
-                  placeholder={t('login.phonePlaceholder')}
-                  placeholderTextColor={Theme.colors.textMuted}
-                  keyboardType="phone-pad"
-                  value={phone}
-                  onChangeText={setPhone}
-                  maxLength={10}
-                  onFocus={() => isFocused.value = true}
-                  onBlur={() => isFocused.value = false}
-                  returnKeyType="done"
-                />
-              </Animated.View>
-            </Animated.View>
-
-            <Animated.View entering={FadeInDown.delay(200).duration(600).springify()}>
-              <AppButton 
-                title={t('login.continue')} 
-                onPress={handleSendOTP}
-                disabled={phone.length < 10}
-                style={styles.actionButton}
-              />
-            </Animated.View>
-
-            <Animated.View entering={FadeInUp.delay(400).duration(600).springify()} style={styles.dividerContainer}>
-              <View style={styles.divider} />
-              <AppText variant="caption" color={Theme.colors.textMuted} style={styles.dividerText}>
-                {t('login.orLoginWith')}
-              </AppText>
-              <View style={styles.divider} />
-            </Animated.View>
-
-            <Animated.View entering={FadeInUp.delay(500).duration(600).springify()} style={styles.socialContainer}>
-              <View style={styles.socialButton}>
-                 <AppText variant="h3" color={Theme.colors.primary}>G</AppText>
-              </View>
-              <View style={styles.socialButton}>
-                 <Apple size={22} color={Theme.colors.text} />
-              </View>
-            </Animated.View>
-          </View>
+      <Animated.View entering={FadeInDown.duration(Theme.motion.base)} style={styles.header}>
+        <View style={styles.iconBubble}>
+          <Smartphone size={26} color={Theme.colors.primary} />
         </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+        <AppText variant="h1" align="center" style={{ marginTop: Theme.spacing.lg }}>
+          {t('login.title')}
+        </AppText>
+        <AppText variant="body" align="center" style={{ marginTop: Theme.spacing.sm }}>
+          {t('login.subtitle')}
+        </AppText>
+      </Animated.View>
+
+      <Animated.View entering={FadeInDown.delay(80).duration(Theme.motion.base)} style={styles.form}>
+        <View style={[styles.inputWrap, error ? styles.inputWrapError : null]}>
+          <View style={styles.countryCode}>
+            <AppText variant="h3">+91</AppText>
+          </View>
+          <TextInput
+            style={styles.input}
+            placeholder={t('flow.auth.phoneLabel')}
+            placeholderTextColor={Theme.colors.textMuted}
+            keyboardType="number-pad"
+            inputMode="numeric"
+            value={phone}
+            onChangeText={(value) => {
+              setPhone(value.replace(/\D/g, '').slice(0, 10));
+              setError(null);
+            }}
+            maxLength={10}
+            returnKeyType="done"
+            autoFocus={Platform.OS !== 'web'}
+            onSubmitEditing={handleSendOtp}
+          />
+        </View>
+
+        {error ? (
+          <AppText variant="bodySmall" color={Theme.colors.error}>
+            {error}
+          </AppText>
+        ) : (
+          <AppText variant="caption">{t('flow.auth.demoHint')}</AppText>
+        )}
+
+        <AppButton title={t('flow.auth.sendOtp')} onPress={handleSendOtp} disabled={!isValid} />
+
+        <View style={styles.terms}>
+          <ShieldCheck size={14} color={Theme.colors.success} />
+          <AppText variant="caption" style={{ flex: 1 }}>
+            {t('flow.auth.terms')}
+          </AppText>
+        </View>
+      </Animated.View>
+    </AppScrollScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Theme.colors.background,
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: Theme.spacing.xl,
-    paddingTop: Theme.spacing.xxl * 2,
-  },
-  header: {
-    marginBottom: Theme.spacing.xxl * 1.5,
+  content: { paddingTop: Theme.spacing.md, gap: Theme.spacing.xl },
+  back: { width: 40, height: 40, justifyContent: 'center' },
+  header: { alignItems: 'center' },
+  iconBubble: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: Theme.colors.primarySoft,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  title: {
-    marginBottom: Theme.spacing.sm,
-    fontSize: 24,
-  },
-  formContainer: {
-    gap: Theme.spacing.xl,
-  },
-  inputContainer: {
+  form: { gap: Theme.spacing.md },
+  inputWrap: {
     flexDirection: 'row',
     alignItems: 'center',
+    height: 58,
+    borderRadius: Theme.borderRadius.lg,
     backgroundColor: Theme.colors.surface,
-    borderRadius: Theme.borderRadius.pill,
-    height: 56, 
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: Theme.colors.border,
     paddingHorizontal: Theme.spacing.md,
   },
+  inputWrapError: { borderColor: Theme.colors.error },
   countryCode: {
-    paddingHorizontal: Theme.spacing.md,
-    borderRightWidth: 1,
+    paddingRight: Theme.spacing.md,
+    borderRightWidth: StyleSheet.hairlineWidth,
     borderRightColor: Theme.colors.border,
     justifyContent: 'center',
-    height: '60%',
   },
   input: {
     flex: 1,
-    paddingHorizontal: Theme.spacing.lg,
+    paddingHorizontal: Theme.spacing.md,
     fontSize: 18,
-    fontWeight: '500',
+    fontWeight: '600',
     color: Theme.colors.text,
+    letterSpacing: 1,
     height: '100%',
   },
-  actionButton: {
-    height: 56,
-    borderRadius: Theme.borderRadius.pill,
-  },
-  dividerContainer: {
+  terms: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: Theme.spacing.lg,
-  },
-  divider: {
-    flex: 1,
-    height: 1,
-    backgroundColor: Theme.colors.border,
-  },
-  dividerText: {
-    marginHorizontal: Theme.spacing.md,
-    letterSpacing: 0,
-  },
-  socialContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: Theme.spacing.xl,
-  },
-  socialButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: Theme.colors.surface,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: Theme.colors.border,
+    gap: Theme.spacing.sm,
+    marginTop: Theme.spacing.sm,
   },
 });

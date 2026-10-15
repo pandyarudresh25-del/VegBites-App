@@ -13,6 +13,12 @@ import { gu } from '../translations/gu';
 
 export type Language = 'en' | 'gu';
 
+/** Selectable languages, in display order. */
+export const LOCALES: { code: Language; labelKey: string }[] = [
+  { code: 'en', labelKey: 'language.english' },
+  { code: 'gu', labelKey: 'language.gujarati' },
+];
+
 const LANGUAGE_STORAGE_KEY = '@vegbites/language';
 
 type Vars = Record<string, string | number>;

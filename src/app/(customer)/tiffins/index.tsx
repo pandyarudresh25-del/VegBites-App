@@ -1,127 +1,280 @@
-import React from 'react';
-import { View, StyleSheet, SafeAreaView, TouchableOpacity, Image } from 'react-native';
+import React, { useState } from 'react';
+import { View, StyleSheet, Pressable, Image, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import Animated, { FadeInDown } from 'react-native-reanimated';
+import { ArrowRight, CalendarClock, Check, Leaf, Moon, Plus, Sun, UtensilsCrossed } from 'lucide-react-native';
 import { AppText } from '../../../components/AppText';
+import { AppButton } from '../../../components/AppButton';
+import { AppScrollScreen, ScreenHeader } from '../../../components/AppScreen';
 import { Theme } from '../../../theme';
-import { ArrowLeft } from 'lucide-react-native';
+import { useLanguage } from '../../../context/LanguageContext';
+import { useAppStore } from '../../../store/AppStore';
+import { IMAGES, SEED_PLANS, SEED_RESTAURANTS } from '../../../data/catalogue';
 
-export default function TiffinTimeScreen() {
+type Slot = 'lunch' | 'dinner';
+
+/**
+ * Tiffin hub — the tab that previously led to a static Morning/Evening screen
+ * and then nowhere. It now shows the active plan, lets the customer pick a
+ * delivery slot, and links into the real plan list and kitchen list.
+ */
+export default function TiffinHubScreen() {
   const router = useRouter();
+  const { t, language, currency } = useLanguage();
+  const { activeSubscription, subscriptions } = useAppStore();
 
-  const navigateToPlans = () => {
-    router.push('/(customer)/plans');
-  };
+  const [slot, setSlot] = useState<Slot>('lunch');
+  const label = (en: string, gu: string) => (language === 'gu' ? gu : en);
+
+  const kitchens = SEED_RESTAURANTS.filter((r) => r.cuisines.includes('gujarathi') || r.cuisines.includes('jain'));
+  const featured = SEED_PLANS.slice(0, 3);
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <ArrowLeft size={24} color={Theme.colors.text} />
-        </TouchableOpacity>
-        <AppText variant="h2" style={styles.headerTitle}>Tiffin Time</AppText>
-        <View style={{ width: 40 }} />
+    <AppScrollScreen contentStyle={{ gap: Theme.spacing.lg }}>
+      <ScreenHeader
+        title={t('screens.tiffin.plansTitle')}
+        subtitle={t('screens.tiffin.plansSubtitle')}
+      />
+
+      {/* active subscription */}
+      {activeSubscription ? (
+        <Animated.View entering={FadeInDown.duration(Theme.motion.base)}>
+          <Pressable onPress={() => router.push('/subscription')} style={styles.activeCard} accessibilityRole="button">
+            <View style={styles.activeIcon}>
+              <CalendarClock size={18} color={Theme.colors.surface} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <AppText variant="label" color={Theme.colors.surface}>
+                {label(activeSubscription.planName, activeSubscription.planNameGu)}
+              </AppText>
+              <AppText variant="caption" color={Theme.colors.surface} style={{ opacity: 0.88 }}>
+                {t('flow.subs.mealsLeft', {
+                  count: activeSubscription.mealsTotal - activeSubscription.mealsUsed,
+                })}{' '}
+                · {t('flow.subs.active')}
+              </AppText>
+            </View>
+            <ArrowRight size={16} color={Theme.colors.surface} />
+          </Pressable>
+        </Animated.View>
+      ) : (
+        <Animated.View entering={FadeInDown.duration(Theme.motion.base)} style={styles.hero}>
+          <Image source={IMAGES.gujaratiThali} style={styles.heroImage} />
+          <View style={styles.heroOverlay}>
+            <AppText variant="h2" color={Theme.colors.surface}>
+              {t('tiffin.slotLunch') ? t('screens.tiffin.vendorsTitle') : ''}
+            </AppText>
+            <AppText variant="caption" color={Theme.colors.surface} style={{ opacity: 0.9 }}>
+              {t('screens.tiffin.vendorsSubtitle')}
+            </AppText>
+          </View>
+        </Animated.View>
+      )}
+
+      {/* slot picker */}
+      <View style={{ gap: Theme.spacing.sm }}>
+        <AppText variant="eyebrow">{t('screens.tiffin.deliverySlot')}</AppText>
+        <View style={styles.slotRow}>
+          {(['lunch', 'dinner'] as const).map((key) => {
+            const active = slot === key;
+            const Icon = key === 'lunch' ? Sun : Moon;
+            return (
+              <Pressable
+                key={key}
+                onPress={() => setSlot(key)}
+                style={[styles.slotCard, active && styles.slotCardActive]}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: active }}
+              >
+                <Icon size={18} color={active ? Theme.colors.surface : Theme.colors.primary} />
+                <View style={{ flex: 1 }}>
+                  <AppText variant="h3" color={active ? Theme.colors.surface : Theme.colors.text}>
+                    {key === 'lunch' ? t('screens.tiffin.slotLunch') : t('screens.tiffin.slotDinner')}
+                  </AppText>
+                  <AppText variant="caption" color={active ? Theme.colors.surface : Theme.colors.textMuted}>
+                    {t('flow.checkout.nowTime')}
+                  </AppText>
+                </View>
+                {active ? <Check size={15} color={Theme.colors.surface} strokeWidth={3} /> : null}
+              </Pressable>
+            );
+          })}
+        </View>
       </View>
 
-      <View style={styles.content}>
-        <Animated.View entering={FadeInDown.duration(400).springify()}>
-          <TouchableOpacity style={styles.timeCard} activeOpacity={0.8} onPress={navigateToPlans}>
-            <View style={styles.textContainer}>
-              <AppText variant="h2" style={styles.title}>Morning</AppText>
-              <View style={styles.timeRow}>
-                <View style={styles.timeDot} />
-                <AppText variant="caption" color={Theme.colors.textSecondary} style={styles.timeText}>05:00 AM - 10:00 AM</AppText>
-              </View>
-            </View>
-            <Image source={require('../../../../assets/images/gujarati_thali.jpg')} style={styles.image} />
-          </TouchableOpacity>
-        </Animated.View>
+      {/* plans */}
+      <View style={{ gap: Theme.spacing.md }}>
+        <View style={styles.sectionHeader}>
+          <AppText variant="h2">{t('screens.tiffin.choosePlan')}</AppText>
+          <Pressable onPress={() => router.push('/tiffins/plan-monthly/plans')} hitSlop={8}>
+            <AppText variant="caption" color={Theme.colors.primary}>
+              {t('flow.common.viewAll')}
+            </AppText>
+          </Pressable>
+        </View>
 
-        <Animated.View entering={FadeInDown.delay(100).duration(400).springify()}>
-          <TouchableOpacity style={styles.timeCard} activeOpacity={0.8} onPress={navigateToPlans}>
-            <View style={styles.textContainer}>
-              <AppText variant="h2" style={styles.title}>Evening</AppText>
-              <View style={styles.timeRow}>
-                <View style={[styles.timeDot, { backgroundColor: Theme.colors.primary }]} />
-                <AppText variant="caption" color={Theme.colors.textSecondary} style={styles.timeText}>02:00 PM - 05:00 PM</AppText>
+        {featured.map((plan, index) => (
+          <Animated.View key={plan.id} entering={FadeInDown.delay(index * 50).duration(Theme.motion.base)}>
+            <Pressable
+              onPress={() => router.push(`/tiffins/${plan.id}/plans`)}
+              style={styles.planRow}
+              accessibilityRole="button"
+            >
+              <View style={{ flex: 1, gap: 3 }}>
+                <View style={styles.planTitleRow}>
+                  <AppText variant="h3">{label(plan.name, plan.nameGu)}</AppText>
+                  {plan.isPopular ? (
+                    <View style={styles.popularTag}>
+                      <AppText variant="caption" color={Theme.colors.primary}>
+                        {t('screens.tiffin.popular')}
+                      </AppText>
+                    </View>
+                  ) : null}
+                </View>
+                <AppText variant="caption">
+                  {t('screens.tiffin.mealsCount', { count: plan.meals })} ·{' '}
+                  {currency(Math.round(plan.price / plan.meals))} {t('screens.tiffin.perMeal')}
+                </AppText>
+                <View style={styles.dietRow}>
+                  <Leaf size={11} color={Theme.colors.success} />
+                  <AppText variant="caption" color={Theme.colors.success}>
+                    {plan.diet.includes('jain') ? t('screens.tiffin.jain') : t('flow.common.veg')}
+                  </AppText>
+                </View>
               </View>
-            </View>
-            <Image source={require('../../../../assets/images/gujarati_thali.jpg')} style={styles.image} />
-          </TouchableOpacity>
-        </Animated.View>
+              <View style={{ alignItems: 'flex-end', gap: 4 }}>
+                <AppText variant="price">{currency(plan.price)}</AppText>
+                <View style={styles.arrow}>
+                  <ArrowRight size={13} color={Theme.colors.primary} />
+                </View>
+              </View>
+            </Pressable>
+          </Animated.View>
+        ))}
       </View>
-    </SafeAreaView>
+
+      {/* kitchens */}
+      <View style={{ gap: Theme.spacing.md }}>
+        <View style={styles.sectionHeader}>
+          <AppText variant="h2">{t('screens.tiffin.vendorsTitle')}</AppText>
+          <Pressable onPress={() => router.push('/tiffins/vendors')} hitSlop={8}>
+            <AppText variant="caption" color={Theme.colors.primary}>
+              {t('flow.common.viewAll')}
+            </AppText>
+          </Pressable>
+        </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.kitchenRow}>
+          {kitchens.map((kitchen) => (
+            <Pressable
+              key={kitchen.id}
+              onPress={() => router.push(`/tiffins/${kitchen.id}/plans`)}
+              style={styles.kitchenCard}
+            >
+              {kitchen.image ? (
+                <Image source={kitchen.image} style={styles.kitchenImage} />
+              ) : (
+                <View style={[styles.kitchenImage, styles.kitchenFallback]} />
+              )}
+              <AppText variant="bodySmall" numberOfLines={1} color={Theme.colors.text}>
+                {label(kitchen.name, kitchen.nameGu)}
+              </AppText>
+              <AppText variant="caption" numberOfLines={1}>
+                {t('restaurants.costForTwo', { amount: currency(kitchen.costForTwo) })}
+              </AppText>
+            </Pressable>
+          ))}
+        </ScrollView>
+      </View>
+
+      {/* manage / browse */}
+      <View style={{ gap: Theme.spacing.md }}>
+        {subscriptions.length > 0 ? (
+          <AppButton
+            title={t('flow.subs.managePlan')}
+            variant="outline"
+            onPress={() => router.push('/subscription')}
+          />
+        ) : null}
+        <AppButton
+          title={t('screens.tiffin.startPlan')}
+          onPress={() => router.push(`/tiffins/${SEED_PLANS[2].id}/plans`)}
+        />
+        <Pressable onPress={() => router.push('/restaurants')} style={styles.altRow}>
+          <UtensilsCrossed size={15} color={Theme.colors.primary} />
+          <AppText variant="bodySmall" color={Theme.colors.primary}>
+            {t('flow.cart.browseRestaurants')}
+          </AppText>
+          <Plus size={13} color={Theme.colors.primary} />
+        </Pressable>
+      </View>
+    </AppScrollScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Theme.colors.background,
-  },
-  header: {
+  activeCard: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: Theme.spacing.lg,
-    paddingVertical: Theme.spacing.md,
+    gap: Theme.spacing.md,
+    backgroundColor: Theme.colors.text,
+    borderRadius: Theme.borderRadius.xl,
+    padding: Theme.spacing.lg,
   },
-  backButton: {
-    width: 40,
-    height: 40,
+  activeIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Theme.colors.primary,
+    alignItems: 'center',
     justifyContent: 'center',
   },
-  headerTitle: {
-    fontSize: 20,
-  },
-  content: {
-    paddingHorizontal: Theme.spacing.xl,
-    paddingTop: Theme.spacing.xxl,
-    gap: Theme.spacing.lg,
-  },
-  timeCard: {
+  hero: { height: 140, borderRadius: Theme.borderRadius.xl, overflow: 'hidden', justifyContent: 'flex-end' },
+  heroImage: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%' },
+  heroOverlay: { padding: Theme.spacing.lg, backgroundColor: 'rgba(43,33,28,0.5)' },
+  slotRow: { flexDirection: 'row', gap: Theme.spacing.md },
+  slotCard: {
+    flex: 1,
     flexDirection: 'row',
+    alignItems: 'center',
+    gap: Theme.spacing.sm,
+    padding: Theme.spacing.md,
+    borderRadius: Theme.borderRadius.lg,
+    borderWidth: 1.5,
+    borderColor: Theme.colors.border,
+    backgroundColor: Theme.colors.surface,
+  },
+  slotCardActive: { backgroundColor: Theme.colors.primary, borderColor: Theme.colors.primary },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  planRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Theme.spacing.md,
     backgroundColor: Theme.colors.surface,
     borderRadius: Theme.borderRadius.xl,
     padding: Theme.spacing.lg,
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: Theme.colors.border,
-    shadowColor: Theme.colors.text,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 2,
-    height: 120,
+    ...Theme.shadows.soft,
   },
-  textContainer: {
-    flex: 1,
+  planTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
+  popularTag: {
+    backgroundColor: Theme.colors.primarySoft,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: Theme.borderRadius.sm,
+  },
+  dietRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
+  arrow: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: Theme.colors.primarySoft,
+    alignItems: 'center',
     justifyContent: 'center',
   },
-  title: {
-    fontSize: 22,
-    marginBottom: 8,
-  },
-  timeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  timeDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: Theme.colors.success,
-  },
-  timeText: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  image: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    resizeMode: 'cover',
-  },
+  kitchenRow: { gap: Theme.spacing.md, paddingRight: Theme.spacing.sm },
+  kitchenCard: { width: 138, gap: 4 },
+  kitchenImage: { width: 138, height: 92, borderRadius: Theme.borderRadius.lg, marginBottom: 2 },
+  kitchenFallback: { backgroundColor: Theme.colors.surfaceSecondary },
+  altRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: Theme.spacing.sm },
 });

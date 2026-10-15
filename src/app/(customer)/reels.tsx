@@ -1,168 +1,211 @@
-import React from 'react';
-import { View, StyleSheet, Dimensions, TouchableOpacity, Image } from 'react-native';
+import React, { useState } from 'react';
+import { View, StyleSheet, Pressable, Image, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
+import Animated, { FadeInDown } from 'react-native-reanimated';
+import { ArrowLeft, Bookmark, Heart, MessageCircle, Play, ShoppingBag } from 'lucide-react-native';
 import { AppText } from '../../components/AppText';
+import { AppScreen, EmptyState } from '../../components/AppScreen';
 import { Theme } from '../../theme';
-import { ArrowLeft, Heart, MessageCircle, Share2, Plus } from 'lucide-react-native';
-import Animated, { FadeIn, SlideInUp } from 'react-native-reanimated';
 import { useLanguage } from '../../context/LanguageContext';
+import { useAppStore } from '../../store/AppStore';
+import { SEED_MENU, SEED_REELS } from '../../data/catalogue';
 
-const { width, height } = Dimensions.get('window');
-
-// A placeholder reel to simulate full screen vertical feed
+/**
+ * Reels. Feed with working like / save / "Order this" — which adds the featured
+ * dish to the cart and opens its kitchen, so the reel is actually shoppable.
+ */
 export default function ReelsScreen() {
   const router = useRouter();
-  const { t } = useLanguage();
+  const { t, language, count } = useLanguage();
+  const { addItem } = useAppStore();
+
+  const [reels, setReels] = useState(SEED_REELS);
+  const [toast, setToast] = useState<string | null>(null);
+
+  const label = (en: string, gu: string) => (language === 'gu' ? gu : en);
+
+  const toggle = (id: string, field: 'liked' | 'saved') => {
+    setReels((prev) =>
+      prev.map((reel) =>
+        reel.id === id
+          ? {
+              ...reel,
+              [field]: !reel[field],
+              likes: field === 'liked' ? reel.likes + (reel.liked ? -1 : 1) : reel.likes,
+            }
+          : reel,
+      ),
+    );
+  };
+
+  const orderThis = (reelId: string) => {
+    const reel = reels.find((r) => r.id === reelId);
+    const item = reel?.itemId ? SEED_MENU.find((m) => m.id === reel.itemId) : undefined;
+    if (!item) return;
+    addItem(item);
+    setToast(t('screens.restaurants.added', { name: label(item.name, item.nameGu) }));
+    setTimeout(() => {
+      setToast(null);
+      router.push(`/restaurant/${item.restaurantId}`);
+    }, 800);
+  };
+
+  if (reels.length === 0) {
+    return (
+      <AppScreen>
+        <EmptyState title={t('flow.reels.none') ?? t('reels.title')} />
+      </AppScreen>
+    );
+  }
 
   return (
-    <View style={styles.container}>
-      {/* Background Image simulating video */}
-      <Animated.Image 
-        entering={FadeIn.duration(800)}
-        source={require('../../../assets/images/gujarati_thali.jpg')} 
-        style={styles.videoBackground} 
-      />
-      <View style={styles.overlay} />
+    <View style={{ flex: 1, backgroundColor: Theme.colors.background }}>
+      {toast ? (
+        <Animated.View entering={FadeInDown.duration(Theme.motion.fast)} style={styles.toast}>
+          <AppText variant="bodySmall" color={Theme.colors.surface}>
+            {toast}
+          </AppText>
+        </Animated.View>
+      ) : null}
 
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <ArrowLeft size={24} color="#fff" />
-        </TouchableOpacity>
-        <AppText variant="h2" color="#fff">{t('reels.title')}</AppText>
-        <View style={{ width: 40 }} />
-      </View>
+      <AppScreen padded={false}>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+          <View style={styles.header}>
+            <Pressable onPress={() => router.back()} hitSlop={12} accessibilityLabel={t('common.back')}>
+              <ArrowLeft size={22} color={Theme.colors.text} />
+            </Pressable>
+            <AppText variant="h2" style={{ flex: 1, marginLeft: Theme.spacing.md }}>
+              {t('reels.title')}
+            </AppText>
+          </View>
 
-      {/* Right Side Actions */}
-      <Animated.View entering={SlideInUp.duration(600).delay(200)} style={styles.actionColumn}>
-        <TouchableOpacity style={styles.actionButton}>
-          <Heart size={32} color="#fff" />
-          <AppText variant="caption" color="#fff" style={styles.actionText}>12.4k</AppText>
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.actionButton}>
-          <MessageCircle size={32} color="#fff" />
-          <AppText variant="caption" color="#fff" style={styles.actionText}>428</AppText>
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.actionButton}>
-          <Share2 size={32} color="#fff" />
-          <AppText variant="caption" color="#fff" style={styles.actionText}>{t('reels.share')}</AppText>
-        </TouchableOpacity>
-      </Animated.View>
+          {reels.map((reel, index) => (
+            <Animated.View key={reel.id} entering={FadeInDown.delay(index * 60).duration(Theme.motion.base)}>
+              <View style={styles.reelCard}>
+                {reel.image ? (
+                  <Image source={reel.image} style={styles.reelImage} />
+                ) : (
+                  <View style={[styles.reelImage, styles.reelFallback]} />
+                )}
 
-      {/* Bottom Info */}
-      <Animated.View entering={SlideInUp.duration(600).delay(300)} style={styles.bottomInfo}>
-        <View style={styles.vendorRow}>
-           <Image source={require('../../../assets/images/gujarati_thali.jpg')} style={styles.vendorAvatar} />
-           <AppText variant="h3" color="#fff" style={{marginRight: 8}}>Shree Krishna Tiffin</AppText>
-           <TouchableOpacity style={styles.followButton}>
-              <Plus size={14} color="#fff" style={{marginRight: 2}} />
-              <AppText variant="caption" color="#fff" style={{fontWeight: 'bold'}}>{t('reels.follow')}</AppText>
-           </TouchableOpacity>
-        </View>
-        <AppText variant="bodySmall" color="#rgba(255,255,255,0.8)" style={styles.description}>
-          Fresh, hot, and delicious Gujarati Thali being prepared for today&apos;s lunch! 🔥🥘 #GujaratiFood #Tiffin
-        </AppText>
-        
-        <TouchableOpacity style={styles.orderCta}>
-          <AppText variant="h3" color={Theme.colors.primary}>{t('reels.orderNow')} - ₹120</AppText>
-        </TouchableOpacity>
-      </Animated.View>
+                {/* play affordance */}
+                <View style={styles.playBadge}>
+                  <Play size={14} color={Theme.colors.surface} fill={Theme.colors.surface} />
+                  <AppText variant="caption" color={Theme.colors.surface}>
+                    {count(reel.views)}
+                  </AppText>
+                </View>
 
+                {/* caption over scrim */}
+                <View style={styles.captionBlock}>
+                  <AppText variant="h3" color={Theme.colors.surface} numberOfLines={2}>
+                    {label(reel.kitchenName, reel.kitchenNameGu)}
+                  </AppText>
+                  <AppText variant="caption" color={Theme.colors.surface} style={{ opacity: 0.9 }} numberOfLines={2}>
+                    {label(reel.caption, reel.captionGu)}
+                  </AppText>
+
+                  <View style={styles.actionRow}>
+                    <Pressable
+                      onPress={() => toggle(reel.id, 'liked')}
+                      style={styles.iconAction}
+                      accessibilityRole="button"
+                      accessibilityLabel={reel.liked ? t('flow.reels.liked') : t('flow.reels.like')}
+                    >
+                      <Heart
+                        size={17}
+                        color={reel.liked ? Theme.colors.primary : Theme.colors.surface}
+                        fill={reel.liked ? Theme.colors.primary : 'transparent'}
+                      />
+                      <AppText variant="caption" color={Theme.colors.surface}>
+                        {count(reel.likes)}
+                      </AppText>
+                    </Pressable>
+
+                    <View style={styles.iconAction}>
+                      <MessageCircle size={17} color={Theme.colors.surface} />
+                      <AppText variant="caption" color={Theme.colors.surface}>
+                        {reel.commentsCount}
+                      </AppText>
+                    </View>
+
+                    <Pressable
+                      onPress={() => toggle(reel.id, 'saved')}
+                      style={styles.iconAction}
+                      accessibilityRole="button"
+                      accessibilityLabel={reel.saved ? t('flow.reels.saved') : t('flow.reels.save')}
+                    >
+                      <Bookmark
+                        size={17}
+                        color={reel.saved ? Theme.colors.primary : Theme.colors.surface}
+                        fill={reel.saved ? Theme.colors.primary : 'transparent'}
+                      />
+                      <AppText variant="caption" color={Theme.colors.surface}>
+                        {reel.saved ? t('flow.reels.saved') : t('flow.reels.save')}
+                      </AppText>
+                    </Pressable>
+                  </View>
+                </View>
+
+                {/* shoppable CTA */}
+                {reel.itemId ? (
+                  <Pressable
+                    onPress={() => orderThis(reel.id)}
+                    style={styles.orderButton}
+                    accessibilityRole="button"
+                  >
+                    <ShoppingBag size={15} color={Theme.colors.surface} />
+                    <AppText variant="label" color={Theme.colors.surface}>
+                      {t('flow.reels.orderThis')}
+                    </AppText>
+                  </Pressable>
+                ) : null}
+              </View>
+            </Animated.View>
+          ))}
+        </ScrollView>
+      </AppScreen>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Theme.colors.text,
-  },
-  videoBackground: {
+  content: { paddingHorizontal: Theme.layout.screenPaddingX, paddingBottom: Theme.spacing.huge, gap: Theme.spacing.lg },
+  header: { flexDirection: 'row', alignItems: 'center', paddingTop: Theme.spacing.sm },
+  reelCard: { height: 400, borderRadius: Theme.borderRadius.xl, overflow: 'hidden', justifyContent: 'flex-end' },
+  reelImage: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%' },
+  reelFallback: { backgroundColor: Theme.colors.surfaceSecondary },
+  playBadge: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    width: '100%',
-    height: '100%',
-  },
-  overlay: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(0,0,0,0.4)', // Dark gradient overlay for text readability
-  },
-  header: {
+    top: Theme.spacing.md,
+    left: Theme.spacing.md,
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: Theme.spacing.lg,
-    paddingTop: 60, // Safe area top
-    paddingBottom: Theme.spacing.md,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-  },
-  actionColumn: {
-    position: 'absolute',
-    right: Theme.spacing.md,
-    bottom: 160,
-    alignItems: 'center',
-    gap: Theme.spacing.xl,
-  },
-  actionButton: {
     alignItems: 'center',
     gap: 4,
-  },
-  actionText: {
-    fontWeight: 'bold',
-    textShadowColor: 'rgba(0,0,0,0.5)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-  },
-  bottomInfo: {
-    position: 'absolute',
-    left: Theme.spacing.lg,
-    right: Theme.spacing.xxl * 2, // Space for right actions
-    bottom: 40, // Safe area bottom
-  },
-  vendorRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: Theme.spacing.md,
-  },
-  vendorAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    marginRight: Theme.spacing.md,
-    borderWidth: 1,
-    borderColor: Theme.colors.surface,
-  },
-  followButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    paddingHorizontal: Theme.spacing.sm,
+    paddingVertical: 3,
     borderRadius: Theme.borderRadius.pill,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.5)',
   },
-  description: {
-    lineHeight: 20,
-    marginBottom: Theme.spacing.lg,
-    textShadowColor: 'rgba(0,0,0,0.5)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-  },
-  orderCta: {
-    backgroundColor: Theme.colors.surface,
+  captionBlock: { padding: Theme.spacing.lg, gap: 4, backgroundColor: 'rgba(43,33,28,0.55)' },
+  actionRow: { flexDirection: 'row', gap: Theme.spacing.xl, marginTop: Theme.spacing.sm },
+  iconAction: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  orderButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: Theme.colors.primary,
     paddingVertical: Theme.spacing.md,
-    paddingHorizontal: Theme.spacing.xl,
+  },
+  toast: {
+    position: 'absolute',
+    top: Theme.spacing.huge,
+    alignSelf: 'center',
+    zIndex: 10,
+    backgroundColor: Theme.colors.text,
+    paddingHorizontal: Theme.spacing.lg,
+    paddingVertical: Theme.spacing.sm,
     borderRadius: Theme.borderRadius.pill,
-    alignSelf: 'flex-start',
-  }
+  },
 });

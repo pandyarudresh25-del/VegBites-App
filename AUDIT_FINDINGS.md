@@ -188,3 +188,57 @@ auditing the exported HTML rather than trusting the static checker.
 - **Vendor and Delivery apps have only palette + broken-link touch-ups.** No Admin
   app, per instruction.
 - Reward redemption needs a points ledger before it can be offered honestly.
+
+---
+
+## 5. Third pass — every remaining customer screen (commit `f1b4562`+)
+
+### 5.1 Findings
+
+- **`(customer)/chat.tsx` called a third-party AI service from a customer screen.**
+  It imported `@heyputer/puter.js` (declared in `package.json`) and called
+  `puter.ai.chat(prompt, { model: 'openai/gpt-5.3-codex' })` — a hosted model with no
+  key management, no fallback, an unstructured English-only prompt, and a hardcoded
+  `#FFFFFF`. Rebuilt as a store-backed conversation with scripted replies derived
+  from the customer's own order/subscription, plus a plainly-worded notice that no
+  human agent is connected. **The dependency has been removed** from `package.json`
+  (lockfile resynced, −258 lines).
+- **`(customer)/plans.tsx`** listed three invented plans with string prices
+  (`'₹699'`) and rendered a **"Pause subscription" button with no `onPress` at all**.
+  Every plan row pushed to the vendors list regardless of which plan was tapped.
+  Rebuilt on `SEED_PLANS` with real subscribe through the store.
+- **`(customer)/restaurant/item.tsx` had no inbound link** — it rendered one
+  hardcoded thali (price `₹180`, "1.2k+ Ratings") for any dish. It is now
+  `restaurant/item/[itemId].tsx`, resolves a real catalogue dish, prerenders one page
+  per dish, and is linked from the restaurant menu (both the thumbnail and the name).
+- **Subscribing ignored the wallet balance.** `subscribeToPlan` debited
+  unconditionally while `pushTxn` clamps the balance at zero → a ₹299 plan could be
+  bought with ₹250 and the shortfall vanished silently. The store now refuses
+  (`Subscription | null`) and both plans screens route to the wallet to top up.
+  The checkout/payments path already guarded this correctly; only subscriptions did not.
+- **`support.tsx` claimed tickets went "into the store"** — they were local state that
+  vanished on reload. Genuinely persisted now, via the same store as chat.
+- **`#fff` / `rgba(...)` literals were still reaching screens** (9 `#fff` in six files,
+  plus hand-written `rgba()` overlays). The earlier palette sweep only matched
+  six-digit hex. All are now theme tokens or `withAlpha(palette.*)`; no colour literal
+  remains outside `src/theme/`.
+
+### 5.2 Verification — latest run
+
+| check | result |
+|---|---|
+| `npx tsc --noEmit` | 0 errors |
+| `npx expo lint` | 0 errors, 15 warnings |
+| `CI=1 npx expo export --platform web` | **163 routes**, exit 0 |
+| `node scripts/check-i18n.js` | 554 = 554 keys, 0 unresolved |
+| `node scripts/check-rendered.js` | 0 of 163 pages show raw keys |
+| customer routes served over HTTP | 32/32 status 200 |
+| customer screens on real state | **29 of 29** |
+
+### 5.3 Still open
+
+- **No pixel-level visual QA** — no browser or screenshot tool in this environment;
+  verification is typecheck + lint + export + rendered-HTML inspection.
+- Vendor and Delivery screens have palette/link fixes only; neither app has been
+  rebuilt on the store yet. No Admin app, per instruction.
+- Reward redemption still needs a points ledger in the store (loyalty states this).

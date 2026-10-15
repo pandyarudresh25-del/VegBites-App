@@ -38,7 +38,7 @@ const FAQS = [
 export default function SupportScreen() {
   const router = useRouter();
   const { t } = useLanguage();
-  const { user, orders } = useAppStore();
+  const { user, orders, submitTicket } = useAppStore();
 
   const [topic, setTopic] = useState<SupportTopic>('order');
   const [message, setMessage] = useState('');
@@ -47,8 +47,10 @@ export default function SupportScreen() {
 
   const handleSubmit = () => {
     if (message.trim().length < 5) return;
-    // A deterministic reference so support can trace the conversation.
-    setTicketRef(`VB${Math.floor(100000 + Math.random() * 899999)}`);
+    // Persisted through the store (the reference survives a reload and shows up
+    // in support chat), rather than living only in this screen's local state.
+    const ticket = submitTicket({ topic, message: message.trim() });
+    setTicketRef(ticket.id);
     setMessage('');
   };
 

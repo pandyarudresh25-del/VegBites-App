@@ -463,6 +463,7 @@ export const gu = {
     }
   },
   common: {
+    quantity: 'જથ્થો',
     back: 'પાછળ',
     remove: 'દૂર કરો',
     apply: 'લાગુ કરો',
@@ -518,6 +519,7 @@ export const gu = {
       off: '{percent}% છૂટ',
     },
     tiffin: {
+      addWalletFirst: 'વોલેટમાં પૈસા ઉમેરો',
       choosePlan: 'તમારો પ્લાન પસંદ કરો',
       plansTitle: 'ટિફિન પ્લાન',
       plansSubtitle: 'દરરોજ ઘર જેવી ગરમ, સંતુલિત થાળી.',
@@ -618,6 +620,32 @@ export const gu = {
       pts: 'પોઈન્ટ',
       redemptionNote: 'રિવોર્ડ રિડેમ્પ્શન હજુ જોડાયેલું નથી — અત્યારે પોઈન્ટ ફક્ત પ્રગતિ દર્શાવે છે.',
       earnMore: 'વધુ કમાવા ઓર્ડર કરો',
+    },
+
+    chat: {
+      title: 'સપોર્ટ ચેટ',
+      subtitle: 'સ્વચાલિત જવાબ',
+      agentLabel: 'વેજબાઇટ્સ સપોર્ટ',
+      greeting: 'નમસ્તે! ઓર્ડર, રિફંડ કે ટિફિન પ્લાન વિશે પૂછો.',
+      placeholder: 'તમારો સંદેશ લખો…',
+      send: 'મોકલો',
+      scripted: 'આ બિલ્ડમાં જવાબો સ્વચાલિત છે — હાલ કોઈ માણસ જવાબ આપતું નથી.',
+      quickOrder: 'મારો ઓર્ડર ક્યાં છે?',
+      quickRefund: 'રિફંડની સ્થિતિ',
+      quickAddress: 'મારે સરનામું બદલવું છે',
+      openTicket: 'સપોર્ટ ટિકિટ બનાવો',
+      ticketsOpen: 'ખુલ્લી ટિકિટ: {count}',
+      ticketCreated: 'ટિકિટ {id} બની — અમારી ટીમ અહીં જવાબ આપશે.',
+    },
+    item: {
+      title: 'વાનગીની વિગત',
+      veg: 'શુદ્ધ શાકાહારી',
+      spicy: 'તીખું',
+      category: 'કેટેગરી: {name}',
+      inCart: 'તમારા કાર્ટમાં {count}',
+      addAddons: 'એડ-ઓન ઉમેરો',
+      addFor: 'ઉમેરો · {total}',
+      tip: 'ઓર્ડર પ્રમાણે તાજું રાંધવામાં આવે છે. ચેકઆઉટ પહેલાં એડ-ઓન ઉમેરી શકાય છે.',
     },
     settings: {
       guest: 'મહેમાન',

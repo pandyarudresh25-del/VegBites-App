@@ -7,7 +7,7 @@ import { AppText } from '../../../components/AppText';
 import { AppButton } from '../../../components/AppButton';
 import { AppScreen, EmptyState } from '../../../components/AppScreen';
 import { QuantityStepper } from '../../../components/QuantityStepper';
-import { Theme } from '../../../theme';
+import { Theme, palette, withAlpha } from '../../../theme';
 import { useLanguage } from '../../../context/LanguageContext';
 import { useAppStore } from '../../../store/AppStore';
 import { SEED_MENU, SEED_RESTAURANTS } from '../../../data/catalogue';
@@ -175,9 +175,15 @@ export default function RestaurantDetailScreen() {
                         <View style={styles.itemRow}>
                           <View style={{ flex: 1, gap: 3 }}>
                             <View style={styles.itemTitleRow}>
-                              <AppText variant="h3" numberOfLines={1} style={{ flexShrink: 1 }}>
-                                {label(item.name, item.nameGu)}
-                              </AppText>
+                              <Pressable
+                                onPress={() => router.push(`/restaurant/item/${item.id}` as never)}
+                                accessibilityRole="button"
+                                style={{ flexShrink: 1 }}
+                              >
+                                <AppText variant="h3" numberOfLines={1} style={styles.itemNameLink}>
+                                  {label(item.name, item.nameGu)}
+                                </AppText>
+                              </Pressable>
                               {item.isBestseller ? (
                                 <View style={styles.tagBestseller}>
                                   <AppText variant="caption" color={Theme.colors.primary}>
@@ -202,11 +208,18 @@ export default function RestaurantDetailScreen() {
                             </View>
                           </View>
 
-                          {item.image ? (
-                            <Image source={item.image} style={styles.itemImage} />
-                          ) : (
-                            <View style={[styles.itemImage, styles.thumbFallback]} />
-                          )}
+                          <Pressable
+                            onPress={() => router.push(`/restaurant/item/${item.id}` as never)}
+                            accessibilityRole="button"
+                            accessibilityLabel={t('screens.item.title')}
+                            hitSlop={4}
+                          >
+                            {item.image ? (
+                              <Image source={item.image} style={styles.itemImage} />
+                            ) : (
+                              <View style={[styles.itemImage, styles.thumbFallback]} />
+                            )}
+                          </Pressable>
 
                           {/* add control sits under the image, as on the reference */}
                           <View style={styles.addWrap}>
@@ -279,7 +292,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(43,33,28,0.22)',
+    backgroundColor: withAlpha(palette.ink, 0.22),
   },
   heroBack: {
     position: 'absolute',
@@ -288,7 +301,7 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: 'rgba(0,0,0,0.35)',
+    backgroundColor: withAlpha(palette.ink, 0.35),
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -299,7 +312,7 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: 'rgba(0,0,0,0.35)',
+    backgroundColor: withAlpha(palette.ink, 0.35),
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -356,6 +369,7 @@ const styles = StyleSheet.create({
     borderRadius: Theme.borderRadius.sm,
   },
   priceRow: { flexDirection: 'row', alignItems: 'center', gap: Theme.spacing.sm, marginTop: 2 },
+  itemNameLink: { textDecorationLine: 'underline' },
   strike: { textDecorationLine: 'line-through' },
   itemImage: { width: 84, height: 84, borderRadius: Theme.borderRadius.md },
   thumbFallback: { backgroundColor: Theme.colors.surfaceSecondary },

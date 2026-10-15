@@ -17,7 +17,7 @@ import {
 } from 'lucide-react-native';
 import { AppText } from '../../components/AppText';
 import { AppScreen } from '../../components/AppScreen';
-import { Theme } from '../../theme';
+import { Theme, palette, withAlpha } from '../../theme';
 import { useLanguage } from '../../context/LanguageContext';
 import { useAppStore } from '../../store/AppStore';
 import { SEED_RESTAURANTS, SEED_PLANS, SEED_REELS, SEED_MENU } from '../../data/catalogue';
@@ -384,7 +384,7 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: 'rgba(255,255,255,0.22)',
+    backgroundColor: withAlpha(palette.surface, 0.22),
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Theme.spacing.sm,
@@ -433,7 +433,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   reelImage: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%' },
-  reelOverlay: { padding: Theme.spacing.lg, gap: 4, backgroundColor: 'rgba(43,33,28,0.42)' },
+  reelOverlay: { padding: Theme.spacing.lg, gap: 4, backgroundColor: withAlpha(palette.ink, 0.42) },
   reelBadge: {
     flexDirection: 'row',
     alignItems: 'center',

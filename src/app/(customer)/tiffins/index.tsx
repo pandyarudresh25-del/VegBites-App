@@ -6,7 +6,7 @@ import { ArrowRight, CalendarClock, Check, Leaf, Moon, Plus, Sun, UtensilsCrosse
 import { AppText } from '../../../components/AppText';
 import { AppButton } from '../../../components/AppButton';
 import { AppScrollScreen, ScreenHeader } from '../../../components/AppScreen';
-import { Theme } from '../../../theme';
+import { Theme, palette, withAlpha } from '../../../theme';
 import { useLanguage } from '../../../context/LanguageContext';
 import { useAppStore } from '../../../store/AppStore';
 import { IMAGES, SEED_PLANS, SEED_RESTAURANTS } from '../../../data/catalogue';
@@ -230,7 +230,7 @@ const styles = StyleSheet.create({
   },
   hero: { height: 140, borderRadius: Theme.borderRadius.xl, overflow: 'hidden', justifyContent: 'flex-end' },
   heroImage: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%' },
-  heroOverlay: { padding: Theme.spacing.lg, backgroundColor: 'rgba(43,33,28,0.5)' },
+  heroOverlay: { padding: Theme.spacing.lg, backgroundColor: withAlpha(palette.ink, 0.5) },
   slotRow: { flexDirection: 'row', gap: Theme.spacing.md },
   slotCard: {
     flex: 1,

@@ -463,6 +463,7 @@ export const en = {
     }
   },
   common: {
+    quantity: 'Quantity',
     back: 'Back',
     remove: 'Remove',
     apply: 'Apply',
@@ -518,6 +519,7 @@ export const en = {
       off: '{percent}% OFF',
     },
     tiffin: {
+      addWalletFirst: 'Add money to your wallet',
       choosePlan: 'Choose your plan',
       plansTitle: 'Tiffin plans',
       plansSubtitle: 'A hot, balanced thali at your desk or door, every day.',
@@ -618,6 +620,32 @@ export const en = {
       pts: 'pts',
       redemptionNote: 'Reward redemption is not wired up yet — for now points simply track your progress.',
       earnMore: 'Order to earn more',
+    },
+
+    chat: {
+      title: 'Support chat',
+      subtitle: 'Automated replies',
+      agentLabel: 'VegBites Support',
+      greeting: 'Hi! Ask us about your order, a refund or your tiffin plan.',
+      placeholder: 'Type your message…',
+      send: 'Send',
+      scripted: 'Replies in this build are automated — no human agent is connected.',
+      quickOrder: 'Where is my order?',
+      quickRefund: 'Refund status',
+      quickAddress: 'I need to change my address',
+      openTicket: 'Raise a support ticket',
+      ticketsOpen: 'Open tickets: {count}',
+      ticketCreated: 'Ticket {id} created — our team will reply here.',
+    },
+    item: {
+      title: 'Dish details',
+      veg: 'Pure veg',
+      spicy: 'Spicy',
+      category: 'Category: {name}',
+      inCart: '{count} in your cart',
+      addAddons: 'Add extras',
+      addFor: 'Add · {total}',
+      tip: 'Cooked fresh to order. Extras can be added before checkout.',
     },
     settings: {
       guest: 'Guest',

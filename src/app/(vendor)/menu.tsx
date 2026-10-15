@@ -37,7 +37,7 @@ export default function MenuManagementScreen() {
                 </View>
                 <Switch
                   trackColor={{ false: Theme.colors.border, true: Theme.colors.success }}
-                  thumbColor="#fff"
+                  thumbColor={Theme.colors.surface}
                   ios_backgroundColor={Theme.colors.border}
                   onValueChange={() => toggleItem(item.id)}
                   value={item.active}

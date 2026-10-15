@@ -96,7 +96,7 @@ export default function CustomerLayout() {
       <Tabs.Screen name="tiffins/[id]/plans" options={hidden} />
       <Tabs.Screen name="tiffins/[id]/thali" options={hidden} />
       <Tabs.Screen name="restaurant/[id]" options={hidden} />
-      <Tabs.Screen name="restaurant/item" options={hidden} />
+      <Tabs.Screen name="restaurant/item/[itemId]" options={hidden} />
       <Tabs.Screen name="addons" options={hidden} />
       <Tabs.Screen name="address" options={hidden} />
       <Tabs.Screen name="plans" options={hidden} />

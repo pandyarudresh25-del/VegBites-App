@@ -5,7 +5,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { ArrowLeft, Bookmark, Heart, MessageCircle, Play, ShoppingBag } from 'lucide-react-native';
 import { AppText } from '../../components/AppText';
 import { AppScreen, EmptyState } from '../../components/AppScreen';
-import { Theme } from '../../theme';
+import { Theme, palette, withAlpha } from '../../theme';
 import { useLanguage } from '../../context/LanguageContext';
 import { useAppStore } from '../../store/AppStore';
 import { SEED_MENU, SEED_REELS } from '../../data/catalogue';
@@ -182,12 +182,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    backgroundColor: Theme.colors.overlay,
     paddingHorizontal: Theme.spacing.sm,
     paddingVertical: 3,
     borderRadius: Theme.borderRadius.pill,
   },
-  captionBlock: { padding: Theme.spacing.lg, gap: 4, backgroundColor: 'rgba(43,33,28,0.55)' },
+  captionBlock: { padding: Theme.spacing.lg, gap: 4, backgroundColor: withAlpha(palette.ink, 0.55) },
   actionRow: { flexDirection: 'row', gap: Theme.spacing.xl, marginTop: Theme.spacing.sm },
   iconAction: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   orderButton: {

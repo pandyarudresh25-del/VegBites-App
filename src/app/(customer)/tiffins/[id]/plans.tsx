@@ -6,7 +6,7 @@ import { ArrowLeft, CalendarClock, Check, Leaf, UtensilsCrossed } from 'lucide-r
 import { AppText } from '../../../../components/AppText';
 import { AppButton } from '../../../../components/AppButton';
 import { AppScrollScreen, ScreenHeader } from '../../../../components/AppScreen';
-import { Theme } from '../../../../theme';
+import { Theme, palette, withAlpha } from '../../../../theme';
 import { useLanguage } from '../../../../context/LanguageContext';
 import { useAppStore } from '../../../../store/AppStore';
 import { SEED_PLANS, SEED_RESTAURANTS, IMAGES } from '../../../../data/catalogue';
@@ -33,9 +33,15 @@ export default function TiffinPlansScreen() {
   const canAfford = selected ? walletBalance >= selected.price : true;
 
   const handleSubscribe = (plan: TiffinPlan) => {
-    subscribeToPlan(plan);
-    setToast(t('flow.subs.pausedToast') && t('screens.tiffin.subscribed'));
+    const subscription = subscribeToPlan(plan);
     setSelectedId(null);
+    if (!subscription) {
+      // Insufficient wallet balance — the store refuses rather than clamping to zero.
+      setToast(t('screens.tiffin.addWalletFirst'));
+      setTimeout(() => router.push('/wallet'), 900);
+      return;
+    }
+    setToast(t('screens.tiffin.subscribed'));
     setTimeout(() => router.push('/subscription'), 900);
   };
 
@@ -255,7 +261,7 @@ const styles = StyleSheet.create({
   },
   heroCard: { height: 128, borderRadius: Theme.borderRadius.xl, overflow: 'hidden', justifyContent: 'flex-end' },
   heroImage: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%' },
-  heroText: { padding: Theme.spacing.lg, backgroundColor: 'rgba(43,33,28,0.5)' },
+  heroText: { padding: Theme.spacing.lg, backgroundColor: withAlpha(palette.ink, 0.5) },
   planCard: {
     backgroundColor: Theme.colors.surface,
     borderRadius: Theme.borderRadius.xl,

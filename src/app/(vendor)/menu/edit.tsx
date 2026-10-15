@@ -83,7 +83,7 @@ export default function EditMenuItemScreen() {
             value={available}
             onValueChange={setAvailable}
             trackColor={{ false: Theme.colors.border, true: Theme.colors.success }}
-            thumbColor="#fff"
+            thumbColor={Theme.colors.surface}
           />
         </Animated.View>
       </ScrollView>

@@ -40,7 +40,7 @@ export default function LanguageSelectionScreen() {
               </View>
               <AppText variant="h3" style={styles.langName}>{t('language.english')}</AppText>
               <View style={[styles.radio, language === 'en' && styles.radioSelected]}>
-                 {language === 'en' && <Check size={14} color="#fff" strokeWidth={3} />}
+                 {language === 'en' && <Check size={14} color={Theme.colors.surface} strokeWidth={3} />}
               </View>
             </AppPressable>
           </Animated.View>
@@ -59,7 +59,7 @@ export default function LanguageSelectionScreen() {
               </View>
               <AppText variant="h3" style={styles.langName}>{t('language.gujarati')}</AppText>
               <View style={[styles.radio, language === 'gu' && styles.radioSelected]}>
-                 {language === 'gu' && <Check size={14} color="#fff" strokeWidth={3} />}
+                 {language === 'gu' && <Check size={14} color={Theme.colors.surface} strokeWidth={3} />}
               </View>
             </AppPressable>
           </Animated.View>

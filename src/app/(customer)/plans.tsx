@@ -1,132 +1,213 @@
-import React from 'react';
-import { View, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity } from 'react-native';
+import React, { useState } from 'react';
+import { View, StyleSheet, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import Animated, { FadeInDown } from 'react-native-reanimated';
+import { ArrowLeft, CalendarClock, Check, UtensilsCrossed } from 'lucide-react-native';
 import { AppText } from '../../components/AppText';
+import { AppButton } from '../../components/AppButton';
+import { AppScrollScreen, EmptyState, ScreenHeader } from '../../components/AppScreen';
 import { Theme } from '../../theme';
-import { ArrowLeft } from 'lucide-react-native';
 import { useLanguage } from '../../context/LanguageContext';
+import { useAppStore } from '../../store/AppStore';
+import { SEED_PLANS } from '../../data/catalogue';
 
-const PLANS = [
-  { id: '1', name: '7 Days Plan', price: '₹699', oldPrice: null },
-  { id: '2', name: '15 Days Plan', price: '₹1299', oldPrice: null },
-  { id: '3', name: 'Monthly Plan', price: '₹1999', oldPrice: '₹2500' },
-];
-
+/**
+ * Tiffin plans.
+ *
+ * Previously a hardcoded list of three plans with string prices and a "Pause
+ * subscription" button that had no handler at all — it could not pause anything.
+ * This now lists the real catalogue plans, subscribes through the store, and shows
+ * the customer's live plan (pausing lives on the subscription screen, where the
+ * subscription state actually is).
+ */
 export default function PlansScreen() {
   const router = useRouter();
-  const { t } = useLanguage();
+  const { t, language, currency, date } = useLanguage();
+  const { subscribeToPlan, activeSubscription, walletBalance } = useAppStore();
+
+  const [toast, setToast] = useState<string | null>(null);
+
+  const label = (en: string, gu: string) => (language === 'gu' ? gu : en);
+
+  const back = (
+    <Pressable onPress={() => router.back()} hitSlop={12} accessibilityLabel={t('common.back')}>
+      <ArrowLeft size={22} color={Theme.colors.text} />
+    </Pressable>
+  );
+
+  const handleSubscribe = (planId: string) => {
+    const plan = SEED_PLANS.find((entry) => entry.id === planId);
+    if (!plan || activeSubscription) return;
+    const subscription = subscribeToPlan(plan);
+    if (!subscription) {
+      // The store refuses when the wallet cannot cover the plan — send them to top up.
+      setToast(t('screens.tiffin.addWalletFirst'));
+      setTimeout(() => router.push('/wallet'), 800);
+      return;
+    }
+    setToast(t('screens.tiffin.subscribed'));
+    setTimeout(() => router.push('/subscription'), 800);
+  };
+
+  if (SEED_PLANS.length === 0) {
+    return (
+      <AppScrollScreen>
+        <ScreenHeader title={t('plans.title')} left={back} />
+        <EmptyState
+          icon={<UtensilsCrossed size={28} color={Theme.colors.primary} />}
+          title={t('screens.tiffin.noVendors')}
+          body={t('screens.tiffin.noVendorsHint')}
+          action={<AppButton title={t('screens.tiffin.vendorsTitle')} onPress={() => router.push('/tiffins/vendors')} />}
+        />
+      </AppScrollScreen>
+    );
+  }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <ArrowLeft size={24} color={Theme.colors.text} />
-        </TouchableOpacity>
+    <AppScrollScreen>
+      <ScreenHeader title={t('plans.title')} subtitle={t('plans.subtitle')} left={back} />
+
+      {activeSubscription ? (
+        <Animated.View entering={FadeInDown.duration(Theme.motion.base)} style={styles.activeCard}>
+          <CalendarClock size={18} color={Theme.colors.primary} />
+          <View style={styles.activeBody}>
+            <AppText variant="h3">{label(activeSubscription.planName, activeSubscription.planNameGu)}</AppText>
+            <AppText variant="caption" color={Theme.colors.textMuted}>
+              {t('screens.tiffin.activeUntil', { date: date(activeSubscription.renewsAt) })}
+            </AppText>
+          </View>
+          <View style={styles.activeButton}>
+            <AppButton
+              variant="outline"
+              fullWidth={false}
+              title={t('nav.subscriptions')}
+              onPress={() => router.push('/subscription')}
+            />
+          </View>
+        </Animated.View>
+      ) : null}
+
+      <View style={styles.list}>
+        {SEED_PLANS.map((plan, index) => {
+          const isActive = activeSubscription?.planId === plan.id;
+          const affordable = walletBalance >= plan.price;
+          return (
+            <Animated.View key={plan.id} entering={FadeInDown.delay(40 + index * 40).duration(Theme.motion.base)}>
+              <View style={[styles.card, plan.isPopular && styles.cardPopular]}>
+                {plan.isPopular ? (
+                  <View style={styles.popularTag}>
+                    <AppText variant="caption" color={Theme.colors.surface}>
+                      {t('screens.tiffin.popular')}
+                    </AppText>
+                  </View>
+                ) : null}
+
+                <View style={styles.cardHead}>
+                  <View style={{ flex: 1 }}>
+                    <AppText variant="h2">{label(plan.name, plan.nameGu)}</AppText>
+                    <AppText variant="caption" color={Theme.colors.textMuted}>
+                      {t('screens.tiffin.mealsCount', { count: plan.meals })}
+                    </AppText>
+                  </View>
+                  <View style={styles.priceBlock}>
+                    <AppText variant="price">{currency(plan.price)}</AppText>
+                    {plan.mrp && plan.mrp > plan.price ? (
+                      <AppText variant="caption" style={styles.strike}>
+                        {currency(plan.mrp)}
+                      </AppText>
+                    ) : null}
+                  </View>
+                </View>
+
+                <View style={styles.includes}>
+                  {plan.includes.map((entry, i) => (
+                    <View key={entry} style={styles.includeRow}>
+                      <Check size={14} color={Theme.colors.success} />
+                      <AppText variant="bodySmall" color={Theme.colors.textSecondary}>
+                        {label(entry, plan.includesGu[i] ?? entry)}
+                      </AppText>
+                    </View>
+                  ))}
+                </View>
+
+                <AppText variant="caption" color={Theme.colors.success}>
+                  {t('screens.tiffin.saveVs', { amount: currency(Math.round(plan.price * 0.18)) })}
+                </AppText>
+
+                <AppButton
+                  title={
+                    isActive
+                      ? t('screens.tiffin.subscribed')
+                      : affordable
+                        ? t('screens.tiffin.startPlan')
+                        : t('screens.tiffin.addWalletFirst')
+                  }
+                  disabled={isActive || Boolean(activeSubscription)}
+                  onPress={() => handleSubscribe(plan.id)}
+                />
+              </View>
+            </Animated.View>
+          );
+        })}
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-        <Animated.View entering={FadeInDown.duration(600).springify()}>
-          <AppText variant="h1" align="center" style={styles.title}>
-            {t('plans.title')}
-          </AppText>
-          <AppText variant="body" align="center" color={Theme.colors.textSecondary} style={styles.subtitle}>
-            {t('plans.subtitle')}
-          </AppText>
-        </Animated.View>
+      <AppButton
+        variant="text"
+        title={t('screens.tiffin.vendorsTitle')}
+        onPress={() => router.push('/tiffins/vendors')}
+      />
 
-        <View style={styles.plansList}>
-          {PLANS.map((plan, index) => (
-            <Animated.View key={plan.id} entering={FadeInDown.delay(100 + index * 100).springify()}>
-              <TouchableOpacity 
-                style={styles.planCard} 
-                activeOpacity={0.7}
-                onPress={() => router.push('/(customer)/tiffins/vendors')}
-              >
-                <View style={styles.planInfo}>
-                  <AppText variant="h2" color={Theme.colors.text}>{plan.name}</AppText>
-                  {plan.oldPrice && (
-                    <AppText variant="bodySmall" style={styles.oldPrice}>{plan.oldPrice}</AppText>
-                  )}
-                </View>
-                <AppText variant="h2" color={Theme.colors.text}>{plan.price}</AppText>
-              </TouchableOpacity>
-            </Animated.View>
-          ))}
+      {toast ? (
+        <View style={styles.toast}>
+          <AppText variant="caption" color={Theme.colors.surface}>
+            {toast}
+          </AppText>
         </View>
-
-        <Animated.View entering={FadeInDown.delay(400).springify()} style={styles.footer}>
-           <TouchableOpacity style={styles.pauseButton} activeOpacity={0.7}>
-             <AppText variant="button" color={Theme.colors.text}>{t('plans.pauseSubscription')}</AppText>
-           </TouchableOpacity>
-        </Animated.View>
-      </ScrollView>
-    </SafeAreaView>
+      ) : null}
+    </AppScrollScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Theme.colors.background,
-  },
-  header: {
-    paddingHorizontal: Theme.spacing.lg,
-    paddingVertical: Theme.spacing.md,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-  },
-  content: {
-    paddingHorizontal: Theme.spacing.xl,
-    paddingTop: Theme.spacing.lg,
-    paddingBottom: Theme.spacing.xxl,
-  },
-  title: {
-    marginBottom: Theme.spacing.sm,
-    fontSize: 24,
-  },
-  subtitle: {
-    marginBottom: Theme.spacing.xxl,
-  },
-  plansList: {
-    gap: Theme.spacing.lg,
-  },
-  planCard: {
+  activeCard: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: Theme.colors.surface,
-    padding: Theme.spacing.xl,
-    borderRadius: Theme.borderRadius.xl,
+    gap: Theme.spacing.md,
+    padding: Theme.spacing.md,
+    borderRadius: Theme.borderRadius.lg,
+    backgroundColor: Theme.colors.primarySoft,
+  },
+  activeBody: { flex: 1, gap: 2 },
+  activeButton: { minWidth: 150 },
+  list: { gap: Theme.spacing.md },
+  card: {
+    gap: Theme.spacing.sm,
+    padding: Theme.spacing.lg,
+    borderRadius: Theme.borderRadius.lg,
     borderWidth: 1,
     borderColor: Theme.colors.border,
-    shadowColor: Theme.colors.text,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    elevation: 2,
+    backgroundColor: Theme.colors.surface,
   },
-  planInfo: {
-    flexDirection: 'column',
+  cardPopular: { borderColor: Theme.colors.primary },
+  popularTag: {
+    alignSelf: 'flex-start',
+    backgroundColor: Theme.colors.primary,
+    paddingHorizontal: Theme.spacing.sm,
+    paddingVertical: 2,
+    borderRadius: Theme.borderRadius.sm,
   },
-  oldPrice: {
-    textDecorationLine: 'line-through',
-    color: Theme.colors.textMuted,
-    marginTop: 4,
-  },
-  footer: {
-    marginTop: Theme.spacing.xxl,
-    alignItems: 'center',
-  },
-  pauseButton: {
-    paddingVertical: Theme.spacing.md,
-    paddingHorizontal: Theme.spacing.xl,
+  cardHead: { flexDirection: 'row', alignItems: 'flex-start', gap: Theme.spacing.md },
+  priceBlock: { alignItems: 'flex-end' },
+  strike: { textDecorationLine: 'line-through', color: Theme.colors.textMuted },
+  includes: { gap: 4 },
+  includeRow: { flexDirection: 'row', alignItems: 'center', gap: Theme.spacing.sm },
+  toast: {
+    position: 'absolute',
+    top: Theme.spacing.huge,
+    alignSelf: 'center',
+    backgroundColor: Theme.colors.text,
+    paddingHorizontal: Theme.spacing.lg,
+    paddingVertical: Theme.spacing.sm,
     borderRadius: Theme.borderRadius.pill,
-    borderWidth: 1,
-    borderColor: Theme.colors.border,
-    backgroundColor: Theme.colors.surface,
   },
 });

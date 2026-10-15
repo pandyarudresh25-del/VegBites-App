@@ -33,11 +33,11 @@ export default function DeliveryTrackingScreen() {
              {/* Simple Map graphic simulation */}
              <View style={styles.mapRoute}>
                <View style={styles.mapDotA}>
-                 <MapPin size={16} color="#fff" />
+                 <MapPin size={16} color={Theme.colors.surface} />
                </View>
                <View style={styles.mapLine} />
                <View style={styles.mapDotB}>
-                 <AppText variant="caption" color="#fff" style={{fontWeight: 'bold'}}>B</AppText>
+                 <AppText variant="caption" color={Theme.colors.surface} style={{fontWeight: 'bold'}}>B</AppText>
                </View>
              </View>
            </View>
@@ -50,7 +50,7 @@ export default function DeliveryTrackingScreen() {
                 
                 <View style={styles.timelineIndicator}>
                   <View style={[styles.dot, status.completed && styles.dotCompleted]}>
-                    {status.completed && <Check size={12} color="#fff" strokeWidth={3} />}
+                    {status.completed && <Check size={12} color={Theme.colors.surface} strokeWidth={3} />}
                   </View>
                   {index < STATUSES.length - 1 && (
                     <View style={styles.line} />

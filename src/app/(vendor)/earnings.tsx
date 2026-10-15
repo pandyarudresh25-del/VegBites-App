@@ -18,7 +18,7 @@ export default function VendorEarningsScreen() {
         <Animated.View entering={FadeInDown.delay(0).springify()}>
           <AppCard padding="lg" style={styles.balanceCard}>
             <AppText variant="caption" color={Theme.colors.surfaceSecondary}>Available Balance</AppText>
-            <AppText variant="h1" color="#fff" style={styles.balanceText}>₹12,450.00</AppText>
+            <AppText variant="h1" color={Theme.colors.surface} style={styles.balanceText}>₹12,450.00</AppText>
             <TouchableOpacity style={styles.withdrawBtn} activeOpacity={0.8}>
                <AppText variant="button" color={Theme.colors.primary}>Withdraw to Bank</AppText>
             </TouchableOpacity>

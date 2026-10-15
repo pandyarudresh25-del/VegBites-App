@@ -25,6 +25,9 @@ import {
   Address,
   Bill,
   CartLine,
+  ChatMessage,
+  SupportTicket,
+  SupportTopic,
   Courier,
   MenuItem,
   Order,
@@ -53,6 +56,8 @@ type PersistedState = {
   walletBalance: number;
   walletTxns: WalletTxn[];
   reviews: Review[];
+  tickets: SupportTicket[];
+  chat: ChatMessage[];
 };
 
 const initialState: PersistedState = {
@@ -74,6 +79,8 @@ const initialState: PersistedState = {
     },
   ],
   reviews: [],
+  tickets: [],
+  chat: [],
 };
 
 const COURIERS: Courier[] = [
@@ -128,7 +135,8 @@ type AppStoreValue = {
   // --- subscriptions ---
   subscriptions: Subscription[];
   activeSubscription: Subscription | undefined;
-  subscribeToPlan: (plan: TiffinPlan) => Subscription;
+  /** Returns null when the wallet cannot cover the plan (the UI routes to top-up). */
+  subscribeToPlan: (plan: TiffinPlan) => Subscription | null;
   setSubscriptionStatus: (id: string, status: Subscription['status']) => void;
   skipNextDelivery: (id: string) => void;
 
@@ -136,6 +144,14 @@ type AppStoreValue = {
   walletBalance: number;
   walletTxns: WalletTxn[];
   addMoney: (amount: number) => void;
+
+  // --- support ---
+  tickets: SupportTicket[];
+  /** Creates a support ticket and returns its reference id. */
+  submitTicket: (input: { topic: SupportTopic; message: string }) => SupportTicket;
+  chat: ChatMessage[];
+  /** Appends the customer's message and returns the agent's scripted reply. */
+  sendChatMessage: (text: string) => ChatMessage;
 
   // --- reviews ---
   reviews: Review[];
@@ -486,6 +502,9 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
   // ---------------------------------------------------------- subscriptions
   const subscribeToPlan = useCallback(
     (plan: TiffinPlan) => {
+      // pushTxn clamps the balance at zero, so an unaffordable plan would silently
+      // eat the shortfall. Refuse instead and let the caller send them to top up.
+      if (state.walletBalance < plan.price) return null;
       const now = Date.now();
       const days = plan.cadence === 'trial' ? 3 : plan.cadence === 'weekly' ? 7 : 30;
       const subscription: Subscription = {
@@ -512,7 +531,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       });
       return subscription;
     },
-    [patch],
+    [patch, state.walletBalance],
   );
 
   const setSubscriptionStatus = useCallback(
@@ -545,6 +564,52 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
   );
 
   // ---------------------------------------------------------------- reviews
+  const submitTicket = useCallback(
+    (input: { topic: SupportTopic; message: string }) => {
+      const now = Date.now();
+      // Deterministic reference so a customer can quote something support can trace.
+      const ticket: SupportTicket = {
+        id: `VB-${String(now).slice(-6)}`,
+        topic: input.topic,
+        message: input.message,
+        createdAt: now,
+        status: 'open',
+      };
+      patch((prev) => ({ ...prev, tickets: [ticket, ...prev.tickets] }));
+      return ticket;
+    },
+    [patch],
+  );
+
+  /**
+   * Support chat.
+   *
+   * Replies are scripted locally from the customer's real state — there is no
+   * backend and no third-party model call, so the screen cannot claim a human
+   * answered. Keeping the reply deterministic also makes it testable.
+   */
+  const sendChatMessage = useCallback(
+    (text: string) => {
+      const now = Date.now();
+      const mine: ChatMessage = { id: newId('msg'), from: 'me', text, at: now };
+      const newestOrder = state.orders[0];
+      const activeSub = state.subscriptions.find((sub) => sub.status === 'active');
+      const reply: ChatMessage = {
+        id: newId('msg'),
+        from: 'agent',
+        text: newestOrder
+          ? `Thanks — I can see order #${newestOrder.id}. It is currently "${newestOrder.status.replace(/_/g, ' ')}". I have flagged this for the kitchen team.`
+          : activeSub
+            ? `Thanks — I can see your ${activeSub.planName} plan. I have noted this and our tiffin team will follow up.`
+            : 'Thanks for writing in. Our support team will get back to you here shortly.',
+        at: now + 1,
+      };
+      patch((prev) => ({ ...prev, chat: [...prev.chat, mine, reply] }));
+      return reply;
+    },
+    [patch, state.orders, state.subscriptions],
+  );
+
   const submitReview = useCallback(
     (input: { orderId: string; restaurantId?: string; restaurantName: string; restaurantNameGu: string; rating: number; text: string; image?: number }) =>
       patch((prev) => ({
@@ -605,12 +670,17 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
 
       reviews: state.reviews,
       submitReview,
+
+      tickets: state.tickets,
+      submitTicket,
+      chat: state.chat,
+      sendChatMessage,
     };
   }, [
     ready, state, itemTotal, bill, signIn, signOut, updateUser, addAddress, selectAddress,
     addItem, addPlan, setQuantity, removeLine, clearCart, applyCoupon, removeCoupon,
     placeOrder, advanceOrder, cancelOrder, reorder, subscribeToPlan, setSubscriptionStatus,
-    skipNextDelivery, addMoney, submitReview,
+    skipNextDelivery, addMoney, submitReview, submitTicket, sendChatMessage, state.walletBalance,
   ]);
 
   return <AppStoreContext.Provider value={value}>{children}</AppStoreContext.Provider>;

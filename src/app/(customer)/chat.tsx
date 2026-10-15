@@ -51,7 +51,7 @@ export default function ChatScreen() {
       };
       
       setMessages(prev => [...prev, aiMessage]);
-    } catch (error) {
+    } catch {
       const errorMessage = { id: (Date.now() + 1).toString(), text: 'Sorry, I am having trouble connecting right now. Please try again later.', isUser: false };
       setMessages(prev => [...prev, errorMessage]);
     } finally {

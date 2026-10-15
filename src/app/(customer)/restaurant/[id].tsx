@@ -399,3 +399,12 @@ const styles = StyleSheet.create({
     borderRadius: Theme.borderRadius.pill,
   },
 });
+
+/**
+ * Prerender one HTML page per seeded kitchen at export time, so deep links to a
+ * kitchen or tiffin vendor ship real content instead of an empty shell.
+ * (Exported routes without params cannot be rendered by a static host.)
+ */
+export async function generateStaticParams(): Promise<Record<string, string>[]> {
+  return SEED_RESTAURANTS.map((restaurant) => ({ id: restaurant.id }));
+}

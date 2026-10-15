@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Pressable, Image, ScrollView } from 'react-native';
+import { View, StyleSheet, Pressable, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { ArrowLeft, CalendarClock, Check, Leaf, UtensilsCrossed } from 'lucide-react-native';
@@ -9,7 +9,7 @@ import { AppScrollScreen, ScreenHeader } from '../../../../components/AppScreen'
 import { Theme } from '../../../../theme';
 import { useLanguage } from '../../../../context/LanguageContext';
 import { useAppStore } from '../../../../store/AppStore';
-import { SEED_PLANS, IMAGES } from '../../../../data/catalogue';
+import { SEED_PLANS, SEED_RESTAURANTS, IMAGES } from '../../../../data/catalogue';
 import type { TiffinPlan } from '../../../../domain/types';
 
 /**
@@ -317,3 +317,12 @@ const styles = StyleSheet.create({
     borderRadius: Theme.borderRadius.pill,
   },
 });
+
+/**
+ * Prerender one HTML page per seeded kitchen at export time, so deep links to a
+ * kitchen or tiffin vendor ship real content instead of an empty shell.
+ * (Exported routes without params cannot be rendered by a static host.)
+ */
+export async function generateStaticParams(): Promise<Record<string, string>[]> {
+  return SEED_RESTAURANTS.map((restaurant) => ({ id: restaurant.id }));
+}

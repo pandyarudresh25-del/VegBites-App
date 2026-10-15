@@ -107,3 +107,84 @@ Of `#E85D24 · #C84A18 · #287849 · #FBF8F2 · #FFFFFF · #F4ECE1 · #2B211C ·
 6. **Then** Vendor, then Delivery. No Admin.
 
 Nothing in sections 1–2 above is inferred; each item maps to a command in section 0.
+
+---
+
+## 4. Status after `fix/customer-app-foundation` (updated at `352e9d0`+)
+
+Section 2 above is the **pre-change** audit. This section records what the branch
+has actually changed, with the commands re-run to prove it.
+
+### 4.1 Verification — latest run on this branch
+
+| check | pre-branch | now |
+|---|---|---|
+| `npx tsc --noEmit` | 0 errors | **0 errors** |
+| `npx expo lint` | — | 0 errors, **15 warnings** (was 38) |
+| `CI=1 npx expo export --platform web` | 89 routes | **129 routes**, exit 0 |
+| `node scripts/check-i18n.js` | 137 = 137, 0 unresolved | **531 = 531, 0 unresolved** |
+| `node scripts/check-rendered.js` | n/a (did not exist) | **0 of 129 pages** show a raw key |
+| customer screens on real state | 0 of 29 | **21 of 29** |
+| mandated palette in `src/` | 0 of 8 | all 8; no off-palette hex |
+| broken nav targets | 5 | **0** |
+
+### 4.2 Findings from the second pass (all now fixed)
+
+These were found *after* the first fix pass, by reading the remaining screens and
+auditing the exported HTML rather than trusting the static checker.
+
+- **`(customer)/tiffins/[id]/thali.tsx` was non-functional.** It never read its own
+  route param, showed four hardcoded English components (`Rotli`, `Sabji`, …) and a
+  hardcoded `₹120` regardless of the kitchen, and "Add to cart" only navigated —
+  the customisation was discarded. Rebuilt: the kitchen comes from the route, the
+  composition is priced per portion above what the vendor includes, and the thali
+  is written to the cart with its composition as a line note.
+- **`(customer)/addons.tsx` dropped everything the user selected.** Add-ons were
+  local mock data with string prices (`'₹20'` parsed by `parseInt`), images bound as
+  `source={{ uri: require(...) }}` (a numeric module id, so nothing rendered), no
+  localization, and pressing "Add" merely pushed `/cart`. Rebuilt on the catalogue
+  with `store.addItem`, real images, `currency()` and en/gu labels.
+- **`(customer)/tiffins/vendors.tsx` invented ids `'1' | '2' | '3'`** that no other
+  screen could resolve, and pushed straight to `/tiffins/1/thali`. Now driven by
+  `SEED_RESTAURANTS` and pushing real ids.
+- **`(customer)/tiffins/[id]/index.tsx` ignored its own `id`** and always rendered
+  "Shree Krishna Tiffin" with three hardcoded dishes and a `#fff` literal. Now
+  resolves the kitchen, its menu and its cheapest plan from the catalogue.
+- **`(customer)/settings.tsx` "logged out" without logging out** — it navigated to
+  `/(auth)/welcome` while leaving the persisted session intact. Now calls
+  `store.signOut()` behind an inline confirmation (`Alert.alert` is a no-op on web).
+- **`(customer)/notifications.tsx` was three hardcoded English notifications** with
+  relative strings (`'10 mins ago'`), a hardcoded `#0284C7` blue and alpha by string
+  concatenation. Rebuilt as a real feed derived from orders, wallet ledger and
+  subscriptions, with en/gu copy and formatters.
+- **`(customer)/loyalty.tsx` claimed a hardcoded 120 points** with a fixed 60%
+  progress bar and chevrons on rows that do nothing. Points are now derived from
+  delivered orders and written reviews. Redemption is deliberately **not** offered:
+  there is no points ledger in the store yet, and a button that cannot redeem would
+  be a lie.
+- **Order lines could not carry a customisation.** `CartLine`/`OrderLine` gained an
+  optional `note`/`noteGu`, threaded through `addItem` → `placeOrder` → `reorder`,
+  and rendered on cart, checkout and tracking.
+- **`tracking/[id].tsx` rendered `line.name` unlocalized** (Gujarati users saw English
+  dish names) — now uses the screen's label helper.
+- **Config was still stock Expo:** splash `#208AEF` and `adaptiveIcon` `#E6F4FE`
+  (both off-palette, listed as P8 above) → `#FBF8F2`; `userInterfaceStyle` `automatic`
+  → `light`, matching the light-only palette.
+- **The static export could not serve a single detail page.** Dynamic routes
+  exported as empty shells (`restaurant/[id].html` pre-rendered as "no kitchens
+  match"). `generateStaticParams` now emits one real page per seeded kitchen for
+  `restaurant/[id]`, `tiffins/[id]`, `tiffins/[id]/plans` and `tiffins/[id]/thali`
+  — 129 routes instead of 89. `scripts/preview-server.py` also resolves dynamic
+  URLs (including multi-level ones) for ids that have no prerendered page.
+
+### 4.3 Still open (do not report as done)
+
+- **8 customer screens remain store-free or hardcoded:** `chat.tsx`, `plans.tsx`,
+  `restaurant/item.tsx` (reachable by URL only — nothing links to it),
+  plus the vendor/delivery palettes.
+- **No pixel-level visual QA.** Verification is typecheck + lint + export +
+  rendered-HTML inspection; no browser or screenshot tool is available in this
+  environment, so layout and animation quality are **not** verified visually.
+- **Vendor and Delivery apps have only palette + broken-link touch-ups.** No Admin
+  app, per instruction.
+- Reward redemption needs a points ledger before it can be offered honestly.

@@ -169,6 +169,11 @@ export default function CartScreen() {
                   <AppText variant="h3" numberOfLines={2}>
                     {label(line.name, line.nameGu)}
                   </AppText>
+                  {line.note ? (
+                    <AppText variant="caption" color={Theme.colors.textMuted} numberOfLines={2}>
+                      {label(line.note, line.noteGu ?? line.note)}
+                    </AppText>
+                  ) : null}
                   <View style={styles.priceRow}>
                     <AppText variant="price">{currency(line.unitPrice)}</AppText>
                     {line.mrp && line.mrp > line.unitPrice ? (

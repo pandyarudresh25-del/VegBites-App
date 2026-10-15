@@ -106,7 +106,8 @@ type AppStoreValue = {
   itemTotal: number;
   bill: Bill;
   couponCode?: string;
-  addItem: (item: MenuItem, quantity?: number) => void;
+  /** Adds a dish. `note` carries a customisation summary (customised thali, add-on bundle). */
+  addItem: (item: MenuItem, quantity?: number, note?: { en: string; gu: string }) => void;
   addPlan: (plan: TiffinPlan) => void;
   setQuantity: (lineId: string, quantity: number) => void;
   removeLine: (lineId: string) => void;
@@ -232,9 +233,12 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
 
   // ------------------------------------------------------------------- cart
   const addItem = useCallback(
-    (item: MenuItem, quantity = 1) =>
+    (item: MenuItem, quantity = 1, note?: { en: string; gu: string }) =>
       patch((prev) => {
-        const existing = prev.cart.find((l) => l.kind === 'item' && l.refId === item.id);
+        // Lines merge only when they are the same dish *and* the same customisation.
+        const existing = prev.cart.find(
+          (l) => l.kind === 'item' && l.refId === item.id && (l.note ?? undefined) === note?.en,
+        );
         if (existing) {
           return {
             ...prev,
@@ -258,6 +262,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
               quantity,
               image: item.image,
               restaurantId: item.restaurantId,
+              ...(note ? { note: note.en, noteGu: note.gu } : null),
             },
           ],
         };
@@ -354,6 +359,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
           unitPrice: l.unitPrice,
           quantity: l.quantity,
           image: l.image,
+          ...(l.note ? { note: l.note, noteGu: l.noteGu } : null),
         })),
         bill,
         paymentMethod: method,
@@ -459,6 +465,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
                 quantity: line.quantity,
                 image: line.image,
                 restaurantId: order.restaurantId,
+                ...(line.note ? { note: line.note, noteGu: line.noteGu } : null),
               };
         });
         // Merge any duplicated lines so the cart never shows the same dish twice.

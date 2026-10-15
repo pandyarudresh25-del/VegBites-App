@@ -51,7 +51,6 @@ export default function AddressScreen() {
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, boolean>>>({});
   const [toast, setToast] = useState<string | null>(null);
 
-  const label = (en: string, gu: string) => (language === 'gu' ? gu : en);
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
     setErrors((prev) => ({ ...prev, [key]: false }));

@@ -14,7 +14,7 @@ import {
 } from 'lucide-react-native';
 import { AppText } from '../../../components/AppText';
 import { AppButton } from '../../../components/AppButton';
-import { AppScreen, AppScrollScreen, ScreenHeader, EmptyState } from '../../../components/AppScreen';
+import { AppScrollScreen, ScreenHeader, EmptyState } from '../../../components/AppScreen';
 import { Theme } from '../../../theme';
 import { useLanguage } from '../../../context/LanguageContext';
 import { useAppStore } from '../../../store/AppStore';
@@ -33,7 +33,8 @@ const ACTIVE_STATUSES: OrderStatus[] = ['placed', 'confirmed', 'preparing', 'pac
 export default function TrackingScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { t, currency, time } = useLanguage();
+  const { t, currency, time, language } = useLanguage();
+  const label = (en: string, gu: string) => (language === 'gu' ? gu : en);
   const { orders, advanceOrder } = useAppStore();
 
   const order = useMemo(() => orders.find((o) => o.id === id), [orders, id]);
@@ -257,9 +258,16 @@ export default function TrackingScreen() {
           </AppText>
           {order.lines.map((line) => (
             <View key={line.id} style={styles.rowBetween}>
-              <AppText variant="bodySmall" style={{ flex: 1 }} numberOfLines={1}>
-                {line.quantity} × {line.name}
-              </AppText>
+              <View style={{ flex: 1 }}>
+                <AppText variant="bodySmall" numberOfLines={1}>
+                  {line.quantity} × {label(line.name, line.nameGu)}
+                </AppText>
+                {line.note ? (
+                  <AppText variant="caption" color={Theme.colors.textMuted} numberOfLines={1}>
+                    {label(line.note, line.noteGu ?? line.note)}
+                  </AppText>
+                ) : null}
+              </View>
               <AppText variant="bodySmall" color={Theme.colors.text}>
                 {currency(line.unitPrice * line.quantity)}
               </AppText>

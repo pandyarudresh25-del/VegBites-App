@@ -1,167 +1,185 @@
-import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, Image } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { View, StyleSheet, Pressable, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import Animated, { FadeInDown } from 'react-native-reanimated';
+import { ArrowLeft, Check, IceCreamCone } from 'lucide-react-native';
 import { AppText } from '../../components/AppText';
+import { AppButton } from '../../components/AppButton';
+import { AppScrollScreen, EmptyState, ScreenHeader } from '../../components/AppScreen';
 import { Theme } from '../../theme';
-import { ArrowLeft, Check } from 'lucide-react-native';
+import { useLanguage } from '../../context/LanguageContext';
+import { useAppStore } from '../../store/AppStore';
+import { SEED_ADDONS } from '../../data/catalogue';
 
-const ADDONS = [
-  { id: '1', name: 'Buttermilk', price: '₹20', image: require('../../../assets/images/gujarati_thali.jpg') },
-  { id: '2', name: 'Salad', price: '₹25', image: require('../../../assets/images/gujarati_thali.jpg') },
-  { id: '3', name: 'Papad', price: '₹15', image: require('../../../assets/images/gujarati_thali.jpg') },
-  { id: '4', name: 'Sweet', price: '₹30', image: require('../../../assets/images/gujarati_thali.jpg') },
-];
-
+/**
+ * Add-ons offered after building a thali.
+ *
+ * Add-ons are real catalogue items, so selecting them here puts them straight into
+ * the cart through `store.addItem` — they then flow through checkout, the order and
+ * tracking like any other dish. Skipping is a first-class action, not a dead end.
+ */
 export default function AddonsScreen() {
   const router = useRouter();
-  const [selected, setSelected] = useState<string[]>([]);
+  const { t, language, currency } = useLanguage();
+  const { addItem } = useAppStore();
 
-  const toggleAddon = (id: string) => {
-    if (selected.includes(id)) {
-      setSelected(selected.filter(i => i !== id));
-    } else {
-      setSelected([...selected, id]);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [toast, setToast] = useState<string | null>(null);
+
+  const label = (en: string, gu: string) => (language === 'gu' ? gu : en);
+
+  const chosen = useMemo(() => SEED_ADDONS.filter((item) => selected.includes(item.id)), [selected]);
+  const total = useMemo(() => chosen.reduce((sum, item) => sum + item.price, 0), [chosen]);
+
+  const toggle = (id: string) =>
+    setSelected((prev) => (prev.includes(id) ? prev.filter((entry) => entry !== id) : [...prev, id]));
+
+  const handleContinue = () => {
+    chosen.forEach((item) => addItem(item));
+    if (chosen.length > 0) {
+      setToast(t('screens.tiffin.addonsAdded', { count: chosen.length }));
+      setTimeout(() => router.push('/cart'), 600);
+      return;
     }
+    router.push('/cart');
   };
 
-  const total = selected.reduce((sum, id) => {
-    const item = ADDONS.find(a => a.id === id);
-    return sum + (item ? parseInt(item.price.replace('₹', '')) : 0);
-  }, 0);
+  const back = (
+    <Pressable onPress={() => router.back()} hitSlop={12} accessibilityLabel={t('common.back')}>
+      <ArrowLeft size={22} color={Theme.colors.text} />
+    </Pressable>
+  );
+
+  if (SEED_ADDONS.length === 0) {
+    return (
+      <AppScrollScreen>
+        <ScreenHeader title={t('screens.tiffin.addonsTitle')} left={back} />
+        <EmptyState
+          icon={<IceCreamCone size={28} color={Theme.colors.primary} />}
+          title={t('screens.tiffin.addonsEmpty')}
+          body={t('screens.tiffin.addonsEmptyHint')}
+          action={<AppButton title={t('screens.tiffin.goToCart')} onPress={() => router.push('/cart')} />}
+        />
+      </AppScrollScreen>
+    );
+  }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <ArrowLeft size={24} color={Theme.colors.text} />
-        </TouchableOpacity>
-        <AppText variant="h2" style={styles.headerTitle}>Add-ons</AppText>
-        <View style={{ width: 40 }} />
+    <AppScrollScreen
+      contentStyle={{ paddingBottom: Theme.spacing.xl }}
+      footer={
+        <View style={styles.footer}>
+          <AppButton variant="outline" title={t('screens.tiffin.skipAddons')} onPress={handleContinue} />
+          <View style={{ width: Theme.spacing.md, flex: 1 }}>
+            <AppButton
+              disabled={selected.length === 0}
+              title={
+                selected.length === 0
+                  ? t('screens.tiffin.addonsCtaEmpty')
+                  : t('screens.tiffin.addonsCta', { count: selected.length, total: currency(total) })
+              }
+              onPress={handleContinue}
+            />
+          </View>
+        </View>
+      }
+    >
+      <ScreenHeader title={t('screens.tiffin.addonsTitle')} subtitle={t('screens.tiffin.addonsSubtitle')} left={back} />
+
+      <View style={styles.list}>
+        {SEED_ADDONS.map((item, index) => {
+          const isOn = selected.includes(item.id);
+          return (
+            <Animated.View key={item.id} entering={FadeInDown.delay(40 + index * 30).duration(Theme.motion.fast)}>
+              <Pressable
+                onPress={() => toggle(item.id)}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: isOn }}
+                accessibilityLabel={label(item.name, item.nameGu)}
+                style={[styles.row, isOn && styles.rowOn]}
+              >
+                <View style={[styles.checkbox, isOn && styles.checkboxOn]}>
+                  {isOn ? <Check size={14} color={Theme.colors.surface} /> : null}
+                </View>
+
+                {item.image ? (
+                  <Image source={item.image} style={styles.image} />
+                ) : (
+                  <View style={[styles.image, styles.imageFallback]}>
+                    <IceCreamCone size={18} color={Theme.colors.primary} />
+                  </View>
+                )}
+
+                <View style={styles.body}>
+                  <AppText variant="h3" numberOfLines={1}>
+                    {label(item.name, item.nameGu)}
+                  </AppText>
+                  <AppText variant="caption" color={Theme.colors.textMuted} numberOfLines={1}>
+                    {label(item.description, item.descriptionGu)}
+                  </AppText>
+                </View>
+
+                <AppText variant="price">{currency(item.price)}</AppText>
+              </Pressable>
+            </Animated.View>
+          );
+        })}
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-        <View style={styles.list}>
-          {ADDONS.map((item, index) => (
-            <Animated.View key={item.id} entering={FadeInDown.delay(100 + index * 50).springify()}>
-              <TouchableOpacity 
-                style={styles.addonRow}
-                activeOpacity={0.7}
-                onPress={() => toggleAddon(item.id)}
-              >
-                <View style={[styles.checkbox, selected.includes(item.id) && styles.checkboxSelected]}>
-                  {selected.includes(item.id) && <Check size={14} color="#fff" />}
-                </View>
-                
-                <Image source={{ uri: item.image }} style={styles.image} />
-                
-                <AppText variant="h3" style={styles.name}>{item.name}</AppText>
-                
-                <View style={styles.pricePill}>
-                  <AppText variant="bodySmall" color={Theme.colors.textMuted}>{item.price}</AppText>
-                </View>
-              </TouchableOpacity>
-              <View style={styles.divider} />
-            </Animated.View>
-          ))}
+      {toast ? (
+        <View style={styles.toast}>
+          <AppText variant="caption" color={Theme.colors.surface}>
+            {toast}
+          </AppText>
         </View>
-      </ScrollView>
-
-      <Animated.View entering={FadeInDown.delay(300).springify()} style={styles.footer}>
-        <TouchableOpacity 
-          style={styles.addButton}
-          activeOpacity={0.8}
-          onPress={() => router.push('/(customer)/cart')}
-        >
-          <AppText variant="button">Add {total > 0 ? `₹${total}` : ''}</AppText>
-        </TouchableOpacity>
-      </Animated.View>
-    </SafeAreaView>
+      ) : null}
+    </AppScrollScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Theme.colors.background,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: Theme.spacing.lg,
-    paddingVertical: Theme.spacing.md,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    fontSize: 20,
-  },
-  content: {
-    paddingHorizontal: Theme.spacing.xl,
-    paddingTop: Theme.spacing.lg,
-    paddingBottom: Theme.spacing.xxl,
-  },
-  list: {
-    gap: Theme.spacing.sm,
-  },
-  addonRow: {
+  list: { gap: Theme.spacing.sm },
+  row: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: Theme.spacing.md,
-  },
-  checkbox: {
-    width: 24,
-    height: 24,
-    borderRadius: 4,
-    borderWidth: 2,
-    borderColor: Theme.colors.border,
-    marginRight: Theme.spacing.md,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  checkboxSelected: {
-    backgroundColor: Theme.colors.primary,
-    borderColor: Theme.colors.primary,
-  },
-  image: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    marginRight: Theme.spacing.md,
-  },
-  name: {
-    flex: 1,
-  },
-  pricePill: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: Theme.borderRadius.pill,
+    gap: Theme.spacing.md,
+    padding: Theme.spacing.md,
+    borderRadius: Theme.borderRadius.lg,
     borderWidth: 1,
     borderColor: Theme.colors.border,
     backgroundColor: Theme.colors.surface,
   },
-  divider: {
-    height: 1,
-    backgroundColor: Theme.colors.border,
-    marginLeft: 40, // align with image
+  rowOn: { borderColor: Theme.colors.primary },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: Theme.borderRadius.sm,
+    borderWidth: 2,
+    borderColor: Theme.colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
+  checkboxOn: { backgroundColor: Theme.colors.primary, borderColor: Theme.colors.primary },
+  image: { width: 44, height: 44, borderRadius: Theme.borderRadius.md },
+  imageFallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: Theme.colors.background },
+  body: { flex: 1, gap: 2 },
   footer: {
-    padding: Theme.spacing.xl,
-    paddingBottom: Theme.spacing.xxl,
-    backgroundColor: Theme.colors.surface,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingTop: Theme.spacing.md,
+    paddingBottom: Theme.spacing.lg,
     borderTopWidth: 1,
     borderTopColor: Theme.colors.border,
+    backgroundColor: Theme.colors.background,
   },
-  addButton: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: Theme.colors.primary,
-    height: 56,
+  toast: {
+    position: 'absolute',
+    top: Theme.spacing.huge,
+    alignSelf: 'center',
+    backgroundColor: Theme.colors.text,
+    paddingHorizontal: Theme.spacing.lg,
+    paddingVertical: Theme.spacing.sm,
     borderRadius: Theme.borderRadius.pill,
-    paddingHorizontal: Theme.spacing.xl,
-  }
+    zIndex: 10,
+  },
 });

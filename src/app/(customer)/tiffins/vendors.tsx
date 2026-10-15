@@ -1,132 +1,126 @@
 import React from 'react';
-import { View, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, Image } from 'react-native';
+import { View, StyleSheet, Pressable, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import Animated, { FadeInDown } from 'react-native-reanimated';
+import { ArrowLeft, Clock, Star, UtensilsCrossed } from 'lucide-react-native';
 import { AppText } from '../../../components/AppText';
+import { AppButton } from '../../../components/AppButton';
+import { AppScrollScreen, EmptyState, ScreenHeader } from '../../../components/AppScreen';
 import { Theme } from '../../../theme';
-import { ArrowLeft, Star, Clock } from 'lucide-react-native';
+import { useLanguage } from '../../../context/LanguageContext';
+import { SEED_RESTAURANTS } from '../../../data/catalogue';
 
-const VENDORS = [
-  { id: '1', name: 'Shree Krishna Tiffin', rating: '4.8 (1200+)', time: '30 Mins', image: require('../../../../assets/images/gujarati_thali.jpg') },
-  { id: '2', name: 'Maa ni Rasoi', rating: '4.7 (800+)', time: '45 Mins', image: require('../../../../assets/images/gujarati_thali.jpg') },
-  { id: '3', name: 'Home Style Tiffin', rating: '4.9 (2000+)', time: '30 Mins', image: require('../../../../assets/images/gujarati_thali.jpg') },
-];
-
-export default function TopVendorsScreen() {
+/**
+ * Tiffin kitchens.
+ *
+ * Lists the seeded kitchens rather than a hand-written array, so the ids here
+ * match the ids the detail screens look up — previously this screen invented
+ * ids ('1', '2', '3') that no other screen could resolve.
+ */
+export default function TiffinVendorsScreen() {
   const router = useRouter();
+  const { t, language, currency, count } = useLanguage();
+
+  const label = (en: string, gu: string) => (language === 'gu' ? gu : en);
+
+  const back = (
+    <Pressable onPress={() => router.back()} hitSlop={12} accessibilityLabel={t('common.back')}>
+      <ArrowLeft size={22} color={Theme.colors.text} />
+    </Pressable>
+  );
+
+  if (SEED_RESTAURANTS.length === 0) {
+    return (
+      <AppScrollScreen>
+        <ScreenHeader title={t('screens.tiffin.vendorsTitle')} left={back} />
+        <EmptyState
+          icon={<UtensilsCrossed size={28} color={Theme.colors.primary} />}
+          title={t('screens.tiffin.noVendors')}
+          body={t('screens.tiffin.noVendorsHint')}
+          action={<AppButton title={t('flow.notFound.cta')} onPress={() => router.replace('/home')} />}
+        />
+      </AppScrollScreen>
+    );
+  }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <ArrowLeft size={24} color={Theme.colors.text} />
-        </TouchableOpacity>
-        <AppText variant="h2" style={styles.headerTitle}>Top Tiffin Vendors</AppText>
-        <View style={{ width: 40 }} />
-      </View>
-
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-        {VENDORS.map((vendor, index) => (
-          <Animated.View key={vendor.id} entering={FadeInDown.delay(100 + index * 100).springify()}>
-            <TouchableOpacity 
-              style={styles.vendorCard} 
-              activeOpacity={0.7}
-              onPress={() => router.push(`/tiffins/${vendor.id}/thali` as any)}
+    <AppScrollScreen>
+      <ScreenHeader
+        title={t('screens.tiffin.vendorsTitle')}
+        subtitle={t('screens.tiffin.vendorsSubtitle')}
+        left={back}
+      />
+      <View style={styles.list}>
+        {SEED_RESTAURANTS.map((vendor, index) => (
+          <Animated.View key={vendor.id} entering={FadeInDown.delay(40 + index * 40).duration(Theme.motion.base)}>
+            <Pressable
+              onPress={() => router.push(`/tiffins/${vendor.id}` as never)}
+              accessibilityRole="button"
+              accessibilityLabel={label(vendor.name, vendor.nameGu)}
+              style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
             >
-              <Image source={{ uri: vendor.image }} style={styles.vendorImage} />
-              <View style={styles.vendorInfo}>
-                <AppText variant="h3" style={styles.vendorName}>{vendor.name}</AppText>
-                
-                <View style={styles.metaRow}>
-                  <View style={styles.ratingBadge}>
-                    <Star size={12} color="#fff" fill="#fff" />
-                    <AppText variant="caption" color="#fff" style={styles.ratingText}>{vendor.rating.split(' ')[0]}</AppText>
-                  </View>
-                  <AppText variant="caption" color={Theme.colors.textMuted}>{vendor.rating.split(' ')[1]}</AppText>
+              {vendor.image ? (
+                <Image source={vendor.image} style={styles.image} />
+              ) : (
+                <View style={[styles.image, styles.imageFallback]}>
+                  <UtensilsCrossed size={22} color={Theme.colors.primary} />
                 </View>
+              )}
+
+              <View style={styles.body}>
+                <AppText variant="h3" numberOfLines={1}>
+                  {label(vendor.name, vendor.nameGu)}
+                </AppText>
 
                 <View style={styles.metaRow}>
-                  <Clock size={14} color={Theme.colors.textMuted} />
-                  <AppText variant="caption" color={Theme.colors.textMuted}>{vendor.time}</AppText>
+                  <View style={styles.meta}>
+                    <Star size={13} color={Theme.colors.primary} fill={Theme.colors.primary} />
+                    <AppText variant="caption" color={Theme.colors.textSecondary}>
+                      {count(vendor.rating)} ({count(vendor.ratingCount)})
+                    </AppText>
+                  </View>
+                  <View style={styles.meta}>
+                    <Clock size={13} color={Theme.colors.textMuted} />
+                    <AppText variant="caption" color={Theme.colors.textSecondary}>
+                      {t('screens.restaurants.deliveryMins', { mins: vendor.deliveryMins })}
+                    </AppText>
+                  </View>
                 </View>
+
+                <AppText variant="caption" color={Theme.colors.textMuted} numberOfLines={1}>
+                  {t('screens.restaurants.minOrder', { amount: currency(vendor.minOrder) })} ·{' '}
+                  {t('screens.restaurants.costForTwo', { amount: currency(vendor.costForTwo) })}
+                </AppText>
+
+                {!vendor.isOpen ? (
+                  <AppText variant="caption" color={Theme.colors.error}>
+                    {t('restaurants.closed')}
+                  </AppText>
+                ) : null}
               </View>
-            </TouchableOpacity>
+            </Pressable>
           </Animated.View>
         ))}
-      </ScrollView>
-    </SafeAreaView>
+      </View>
+    </AppScrollScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Theme.colors.background,
-  },
-  header: {
+  list: { gap: Theme.spacing.md },
+  card: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: Theme.spacing.lg,
-    paddingVertical: Theme.spacing.md,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    fontSize: 20,
-  },
-  content: {
-    paddingHorizontal: Theme.spacing.xl,
-    paddingTop: Theme.spacing.md,
-    paddingBottom: Theme.spacing.xxl,
-    gap: Theme.spacing.lg,
-  },
-  vendorCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Theme.colors.surface,
-    padding: Theme.spacing.lg,
-    borderRadius: Theme.borderRadius.xl,
+    gap: Theme.spacing.md,
+    padding: Theme.spacing.md,
+    borderRadius: Theme.borderRadius.lg,
     borderWidth: 1,
     borderColor: Theme.colors.border,
-    shadowColor: Theme.colors.text,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.04,
-    shadowRadius: 10,
-    elevation: 2,
+    backgroundColor: Theme.colors.surface,
   },
-  vendorImage: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    marginRight: Theme.spacing.lg,
-  },
-  vendorInfo: {
-    flex: 1,
-    gap: 4,
-  },
-  vendorName: {
-    fontSize: 18,
-    marginBottom: 4,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  ratingBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Theme.colors.success,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-    gap: 4,
-  },
-  ratingText: {
-    fontWeight: '800',
-  },
+  cardPressed: { borderColor: Theme.colors.primary },
+  image: { width: 76, height: 76, borderRadius: Theme.borderRadius.md },
+  imageFallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: Theme.colors.background },
+  body: { flex: 1, gap: 4 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: Theme.spacing.md },
+  meta: { flexDirection: 'row', alignItems: 'center', gap: 4 },
 });

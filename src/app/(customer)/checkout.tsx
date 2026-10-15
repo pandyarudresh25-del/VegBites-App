@@ -181,9 +181,16 @@ export default function CheckoutScreen() {
           </AppText>
           {cart.map((line) => (
             <View key={line.id} style={styles.summaryRow}>
-              <AppText variant="bodySmall" style={{ flex: 1 }} numberOfLines={1}>
-                {line.quantity} × {label(line.name, line.nameGu)}
-              </AppText>
+              <View style={{ flex: 1 }}>
+                <AppText variant="bodySmall" numberOfLines={1}>
+                  {line.quantity} × {label(line.name, line.nameGu)}
+                </AppText>
+                {line.note ? (
+                  <AppText variant="caption" color={Theme.colors.textMuted} numberOfLines={1}>
+                    {label(line.note, line.noteGu ?? line.note)}
+                  </AppText>
+                ) : null}
+              </View>
               <AppText variant="bodySmall" color={Theme.colors.text}>
                 {currency(line.unitPrice * line.quantity)}
               </AppText>

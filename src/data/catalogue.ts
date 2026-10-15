@@ -204,3 +204,39 @@ export const SEED_REELS: Reel[] = [
   { id: 'reel3', kitchenName: 'Anna’s South Indian', kitchenNameGu: 'અન્ના સાઉથ ઇન્ડિયન', restaurantId: 'r3', caption: 'Dosa crisping in real time', captionGu: 'ડોસા કડક થાય છે, લાઇવ', image: IMAGES.southIndian, likes: 2310, commentsCount: 64, views: 32100, itemId: 'r3i1' },
   { id: 'reel4', kitchenName: 'Punjabi Haveli', kitchenNameGu: 'પંજાબી હવેલી', restaurantId: 'r4', caption: 'Butter naan, tandoor fresh', captionGu: 'બટર નાન, તંદૂરમાંથી તાજી', image: IMAGES.punjabiThali, likes: 640, commentsCount: 12, views: 8700, itemId: 'r4i2' },
 ];
+
+/**
+ * Components of a build-your-own thali.
+ *
+ * `defaultCount` is what the vendor's base thali already includes — raising a count
+ * above it adds `extraPrice` per extra portion to the cart line. This keeps the
+ * builder honest: the total always matches what the customer pays.
+ */
+export type ThaliComponent = {
+  id: string;
+  name: string;
+  nameGu: string;
+  defaultCount: number;
+  extraPrice: number;
+};
+
+export const THALI_COMPONENTS: ThaliComponent[] = [
+  { id: 'rotli', name: 'Rotli', nameGu: 'રોટલી', defaultCount: 4, extraPrice: 8 },
+  { id: 'sabji', name: 'Sabji', nameGu: 'શાક', defaultCount: 2, extraPrice: 30 },
+  { id: 'dal', name: 'Dal', nameGu: 'દાળ', defaultCount: 1, extraPrice: 25 },
+  { id: 'rice', name: 'Rice', nameGu: 'ભાત', defaultCount: 1, extraPrice: 30 },
+  { id: 'kadhi', name: 'Kadhi', nameGu: 'કઢી', defaultCount: 1, extraPrice: 25 },
+  { id: 'farsan', name: 'Farsan', nameGu: 'ફરસાણ', defaultCount: 1, extraPrice: 35 },
+];
+
+/**
+ * Optional extras offered after building a thali. These are ordinary MenuItems so
+ * they flow through the normal cart, checkout and order pipeline unchanged.
+ */
+export const SEED_ADDONS: import('../domain/types').MenuItem[] = [
+  { id: 'a1', restaurantId: 'r1', name: 'Buttermilk', nameGu: 'છાશ', description: 'Chilled chaas with roasted cumin', descriptionGu: 'ભુકા જીરા સાથે ઠંડી છાશ', price: 25, image: IMAGES.southIndian, diet: ['veg'], category: 'Add-ons', available: true },
+  { id: 'a2', restaurantId: 'r1', name: 'Green Salad', nameGu: 'ગ્રીન સલાડ', description: 'Cucumber, tomato, carrot, lemon', descriptionGu: 'કાકડી, ટામેટા, ગાજર, લીંબુ', price: 30, image: IMAGES.jainFood, diet: ['veg'], category: 'Add-ons', available: true },
+  { id: 'a3', restaurantId: 'r1', name: 'Roasted Papad', nameGu: 'શેકેલું પાપડ', description: 'Crisp papad, roasted not fried', descriptionGu: 'કડક પાપડ, તળેલું નહીં, શેકેલું', price: 15, image: IMAGES.gujaratiThali, diet: ['veg'], category: 'Add-ons', available: true },
+  { id: 'a4', restaurantId: 'r1', name: 'Shrikhand', nameGu: 'શ્રીખંડ', description: 'Saffron hung curd, chilled', descriptionGu: 'કેસરવાળું શ્રીખંડ, ઠંડું', price: 45, image: IMAGES.gujaratiThali, diet: ['veg'], category: 'Add-ons', available: true },
+  { id: 'a5', restaurantId: 'r1', name: 'Extra Rotli (2 pcs)', nameGu: 'વધારાની રોટલી (૨ નંગ)', description: 'Two more phulka rotli', descriptionGu: 'બે વધારાની ફૂલકા રોટલી', price: 20, image: IMAGES.gujaratiThali, diet: ['veg'], category: 'Add-ons', available: true },
+];

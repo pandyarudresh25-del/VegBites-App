@@ -104,6 +104,9 @@ export type CartLine = {
   quantity: number;
   image?: number;
   restaurantId?: string;
+  /** Free-form composition line, e.g. a customised thali ("4 rotli · 2 sabji"). */
+  note?: string;
+  noteGu?: string;
 };
 
 export type PaymentMethod = 'upi' | 'card' | 'wallet' | 'cod';
@@ -140,6 +143,8 @@ export type OrderLine = {
   unitPrice: number;
   quantity: number;
   image?: number;
+  note?: string;
+  noteGu?: string;
 };
 
 export type Bill = {

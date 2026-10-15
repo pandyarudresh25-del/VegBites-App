@@ -10,6 +10,35 @@ import { Theme } from '../../theme';
 import { useLanguage } from '../../context/LanguageContext';
 import { useAppStore } from '../../store/AppStore';
 
+const StarRow: React.FC<{ value: number; onChange: (next: number) => void; size?: number; label: string }> = ({
+  value,
+  onChange,
+  size = 26,
+  label,
+}) => (
+  <View style={{ flexDirection: 'row', gap: 6 }}>
+    {[1, 2, 3, 4, 5].map((step) => {
+      const active = step <= value;
+      return (
+        <Pressable
+          key={step}
+          onPress={() => onChange(step)}
+          hitSlop={6}
+          accessibilityRole="radio"
+          accessibilityLabel={`${label} ${step}`}
+          accessibilityState={{ selected: value === step }}
+        >
+          <Star
+            size={size}
+            color={active ? Theme.colors.primary : Theme.colors.border}
+            fill={active ? Theme.colors.primary : 'transparent'}
+          />
+        </Pressable>
+      );
+    })}
+  </View>
+);
+
 const RATING_LABELS: { value: number; key: string }[] = [
   { value: 5, key: 'excellent' },
   { value: 4, key: 'good' },
@@ -32,6 +61,8 @@ export default function ReviewsScreen() {
   const { orders, reviews, submitReview } = useAppStore();
 
   const [rating, setRating] = useState(5);
+  const [foodRating, setFoodRating] = useState(5);
+  const [deliveryRating, setDeliveryRating] = useState(5);
   const [text, setText] = useState('');
   const [submitted, setSubmitted] = useState(false);
 
@@ -48,6 +79,8 @@ export default function ReviewsScreen() {
       restaurantName: order.restaurantName,
       restaurantNameGu: order.restaurantNameGu,
       rating,
+      foodRating,
+      deliveryRating,
       text: text.trim(),
       image: order.kitchenImage,
     });
@@ -107,6 +140,20 @@ export default function ReviewsScreen() {
           <AppText variant="h3" align="center" color={Theme.colors.primary}>
             {t(`flow.reviews.${RATING_LABELS.find((r) => r.value === rating)?.key ?? 'good'}`)}
           </AppText>
+
+          {/* required sub-ratings: food quality + delivery */}
+          <View style={styles.subRating}>
+            <AppText variant="bodySmall" color={Theme.colors.textSecondary}>
+              {t('flow.reviews.foodQuality')}
+            </AppText>
+            <StarRow value={foodRating} onChange={setFoodRating} label={t('flow.reviews.foodQuality')} />
+          </View>
+          <View style={styles.subRating}>
+            <AppText variant="bodySmall" color={Theme.colors.textSecondary}>
+              {t('flow.reviews.deliveryRating')}
+            </AppText>
+            <StarRow value={deliveryRating} onChange={setDeliveryRating} label={t('flow.reviews.deliveryRating')} />
+          </View>
 
           <AppText variant="label" style={{ marginTop: Theme.spacing.sm }}>
             {t('flow.reviews.yourReview')}
@@ -218,6 +265,13 @@ const styles = StyleSheet.create({
     backgroundColor: Theme.colors.primarySoft,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  subRating: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Theme.spacing.md,
+    marginTop: Theme.spacing.sm,
   },
   starRow: {
     flexDirection: 'row',

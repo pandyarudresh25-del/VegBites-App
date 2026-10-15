@@ -5,25 +5,42 @@
  * other token is an alpha tint of one of them, so a palette change here
  * propagates everywhere and nothing can silently drift off-brand.
  *
- *   #E85D24 primary      #C84A18 primaryDark   #287849 success
+ *   #E85D24 primary      #C84A18 primaryDark   #287849 green
  *   #FBF8F2 background   #FFFFFF surface       #F4ECE1 sand
  *   #2B211C ink          #786A60 muted
  *
- * Deliberate mapping note: the brief's palette contains no red, so `error`
- * uses the deep brand orange (#C84A18) and `success` uses the brand green
- * (#287849). This keeps the palette closed at eight colours.
+ * The brand's approved semantic state colours are defined once below
+ * (`states`) and referenced everywhere - screens must never hardcode them:
+ *
+ *   #E9DED2 border       #2F8A57 success      #D99A26 warning
+ *   #D94841 error        #3978D4 info         #C8BFB4 disabled
+ *   rgba(43,33,28,0.45) overlay
  */
 
 /** The eight mandated brand colours — do not add to this list. */
 export const palette = {
   primary: '#E85D24',
   primaryDark: '#C84A18',
-  success: '#287849',
+  green: '#287849',
   background: '#FBF8F2',
   surface: '#FFFFFF',
   sand: '#F4ECE1',
   ink: '#2B211C',
   muted: '#786A60',
+} as const;
+
+/**
+ * Approved non-brand values from the locked palette: semantic states, the border
+ * tint and the disabled grey. Kept separate from `palette` so the brand accents
+ * stay obvious, but equally locked - do not edit these values.
+ */
+export const states = {
+  border: '#E9DED2',
+  success: '#2F8A57',
+  warning: '#D99A26',
+  error: '#D94841',
+  info: '#3978D4',
+  disabled: '#C8BFB4',
 } as const;
 
 /**
@@ -54,11 +71,17 @@ export const Colors = {
   primaryDark: palette.primaryDark,
   /** Tinted brand wash for selected rows, offer strips, soft badges. */
   primarySoft: withAlpha(palette.primary, 0.12),
-  success: palette.success,
-  successSoft: withAlpha(palette.success, 0.12),
-  /** Deep orange doubles as the palette's danger colour (no red in brand). */
-  error: palette.primaryDark,
-  warning: palette.primary,
+  success: states.success,
+  successSoft: withAlpha(states.success, 0.12),
+  /** Destructive / failure states. Distinct from the brand accents by design. */
+  error: states.error,
+  errorSoft: withAlpha(states.error, 0.12),
+  warning: states.warning,
+  warningSoft: withAlpha(states.warning, 0.12),
+  info: states.info,
+  infoSoft: withAlpha(states.info, 0.12),
+  /** Disabled controls and text. */
+  disabled: states.disabled,
 
   // --- surfaces ------------------------------------------------------------
   background: palette.background,
@@ -76,9 +99,9 @@ export const Colors = {
   textMuted: withAlpha(palette.muted, 0.72),
 
   // --- lines ---------------------------------------------------------------
-  border: withAlpha(palette.muted, 0.22),
-  borderStrong: withAlpha(palette.muted, 0.38),
-  divider: withAlpha(palette.muted, 0.16),
+  border: states.border,
+  borderStrong: withAlpha(palette.muted, 0.42),
+  divider: withAlpha(states.border, 0.7),
 
   // --- misc ----------------------------------------------------------------
   overlay: withAlpha(palette.ink, 0.45),

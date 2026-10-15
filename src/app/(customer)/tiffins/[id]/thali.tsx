@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { View, StyleSheet, Pressable, Image } from 'react-native';
+import { View, StyleSheet, Pressable, Image, TextInput } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { ArrowLeft, Minus, Plus, Soup, Sparkles } from 'lucide-react-native';
@@ -30,6 +30,7 @@ export default function BuildThaliScreen() {
 
   const [counts, setCounts] = useState<number[]>(() => THALI_COMPONENTS.map((c) => c.defaultCount));
   const [toast, setToast] = useState<string | null>(null);
+  const [instructions, setLocalInstructions] = useState('');
 
   const label = (en: string, gu: string) => (language === 'gu' ? gu : en);
 
@@ -77,7 +78,14 @@ export default function BuildThaliScreen() {
 
   const handleAdd = () => {
     if (!base) return;
-    addItem({ ...base, price: total, mrp: undefined }, 1, { en: composition.en, gu: composition.gu });
+    // Special instructions ride along in the line note, so the kitchen sees them.
+    const note = instructions.trim()
+      ? {
+          en: `${composition.en} · ${instructions.trim()}`,
+          gu: `${composition.gu} · ${instructions.trim()}`,
+        }
+      : { en: composition.en, gu: composition.gu };
+    addItem({ ...base, price: total, mrp: undefined }, 1, note);
     setToast(t('screens.tiffin.thaliAdded', { name: label(base.name, base.nameGu) }));
     setTimeout(() => router.push('/addons'), 700);
   };
@@ -184,6 +192,20 @@ export default function BuildThaliScreen() {
         })}
       </View>
 
+      <View style={styles.instructions}>
+        <AppText variant="h3">{t('screens.thali.instructions')}</AppText>
+        <TextInput
+          value={instructions}
+          onChangeText={setLocalInstructions}
+          placeholder={t('screens.thali.instructionsHint')}
+          placeholderTextColor={Theme.colors.textMuted}
+          multiline
+          maxLength={140}
+          style={styles.instructionsInput}
+          accessibilityLabel={t('screens.thali.instructions')}
+        />
+      </View>
+
       {extras > 0 ? (
         <View style={styles.extrasBanner}>
           <Sparkles size={16} color={Theme.colors.primary} />
@@ -238,6 +260,19 @@ const styles = StyleSheet.create({
   stepperButton: { width: 40, height: 36, alignItems: 'center', justifyContent: 'center' },
   stepperCount: { width: 28, textAlign: 'center' },
   divider: { height: 1, backgroundColor: Theme.colors.border },
+  instructions: { gap: Theme.spacing.sm },
+  instructionsInput: {
+    minHeight: 64,
+    borderRadius: Theme.borderRadius.md,
+    borderWidth: 1,
+    borderColor: Theme.colors.border,
+    backgroundColor: Theme.colors.surface,
+    paddingHorizontal: Theme.spacing.md,
+    paddingVertical: Theme.spacing.sm,
+    fontSize: 15,
+    color: Theme.colors.text,
+    textAlignVertical: 'top',
+  },
   extrasBanner: {
     flexDirection: 'row',
     alignItems: 'center',

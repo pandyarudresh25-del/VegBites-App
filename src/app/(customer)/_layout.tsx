@@ -111,6 +111,7 @@ export default function CustomerLayout() {
       <Tabs.Screen name="checkout" options={hidden} />
       <Tabs.Screen name="payments" options={hidden} />
       <Tabs.Screen name="tracking/[id]" options={hidden} />
+      <Tabs.Screen name="orders/[id]" options={hidden} />
       <Tabs.Screen name="order-confirmation" options={hidden} />
     </Tabs>
   );

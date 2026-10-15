@@ -75,7 +75,17 @@ export type Restaurant = {
   heroItemIds: string[];
 };
 
-export type PlanCadence = 'trial' | 'weekly' | 'monthly';
+/** Kitchen windows from the build spec, not arbitrary times. */
+export type TiffinSlot = 'morning' | 'evening';
+
+export const TIFFIN_SLOTS: TiffinSlot[] = ['morning', 'evening'];
+
+export const SLOT_WINDOW: Record<TiffinSlot, { start: string; end: string }> = {
+  morning: { start: '05:00 AM', end: '10:00 AM' },
+  evening: { start: '02:00 PM', end: '05:00 PM' },
+};
+
+export type PlanCadence = 'trial' | 'weekly' | 'fortnight' | 'monthly';
 
 export type TiffinPlan = {
   id: string;
@@ -109,7 +119,14 @@ export type CartLine = {
   noteGu?: string;
 };
 
-export type PaymentMethod = 'upi' | 'card' | 'wallet' | 'cod';
+export type PaymentMethod =
+  | 'cod'
+  | 'upi'
+  | 'gpay'
+  | 'phonepe'
+  | 'netbanking'
+  | 'card'
+  | 'wallet';
 
 /**
  * Order lifecycle. Everything up to `delivered` is what the LIVE TRACKING
@@ -124,6 +141,43 @@ export type OrderStatus =
   | 'out_for_delivery'
   | 'delivered'
   | 'cancelled';
+
+/**
+ * The six customer-facing stages shown on LIVE TRACKING. The internal OrderStatus
+ * set is finer-grained (7 states) because the kitchen and courier apps need
+ * "packed" and "picked up" separately; both map onto these stages so the customer
+ * only ever sees the six required labels.
+ */
+export type TrackingStage = 'pending' | 'accepted' | 'preparing' | 'ready' | 'outForDelivery' | 'delivered';
+
+export const TRACKING_STAGES: TrackingStage[] = [
+  'pending',
+  'accepted',
+  'preparing',
+  'ready',
+  'outForDelivery',
+  'delivered',
+];
+
+export const STAGE_OF_STATUS: Record<OrderStatus, TrackingStage> = {
+  placed: 'pending',
+  confirmed: 'accepted',
+  preparing: 'preparing',
+  packed: 'ready',
+  picked_up: 'outForDelivery',
+  out_for_delivery: 'outForDelivery',
+  delivered: 'delivered',
+  cancelled: 'pending',
+};
+
+export const STAGE_KEY: Record<TrackingStage, string> = {
+  pending: 'tracking.pending',
+  accepted: 'tracking.accepted',
+  preparing: 'tracking.preparing',
+  ready: 'tracking.foodReady',
+  outForDelivery: 'tracking.outForDelivery',
+  delivered: 'tracking.delivered',
+};
 
 /** Ordered progression used by the tracking timeline. */
 export const ORDER_FLOW: OrderStatus[] = [
@@ -151,6 +205,7 @@ export type Bill = {
   itemTotal: number;
   discount: number;
   deliveryFee: number;
+  platformFee: number;
   taxes: number;
   total: number;
   couponCode?: string;
@@ -182,6 +237,12 @@ export type Order = {
   courier?: Courier;
   /** Minutes, counted down by the tracking screen. */
   etaMins: number;
+  /** Handover code the delivery partner verifies at the door. */
+  deliveryOtp: string;
+  /** Free-text note from the customer for this order. */
+  instructions?: string;
+  /** Requested tiffin slot, when the order came from a tiffin plan. */
+  slot?: TiffinSlot;
   reviewed?: boolean;
   subscriptionId?: string;
 };
@@ -224,10 +285,24 @@ export type Review = {
   restaurantId?: string;
   restaurantName: string;
   restaurantNameGu: string;
+  /** Overall rating (1-5). */
   rating: number;
+  /** Food-quality sub-rating (1-5). */
+  foodRating: number;
+  /** Delivery sub-rating (1-5). */
+  deliveryRating: number;
   text: string;
   createdAt: number;
   image?: number;
+};
+
+export type ReelComment = {
+  id: string;
+  author: string;
+  text: string;
+  at: number;
+  /** True for comments this customer wrote (seeded ones are other people's). */
+  mine?: boolean;
 };
 
 export type WalletTxnKind = 'credit' | 'debit' | 'refund' | 'cashback';
@@ -263,6 +338,9 @@ export type ChatMessage = {
 export const PRICING = {
   freeDeliveryOver: 499,
   deliveryFee: 29,
+  /** Flat platform fee, waived on larger baskets. */
+  platformFee: 5,
+  freePlatformFeeOver: 999,
   /** Applied on post-discount subtotal. */
   taxRate: 0.05,
   coupons: {
@@ -295,13 +373,15 @@ export function computeBill(itemTotal: number, couponCode?: string): Bill {
         : coupon.value;
   }
   const deliveryFee = itemTotal === 0 || itemTotal >= PRICING.freeDeliveryOver ? 0 : PRICING.deliveryFee;
+  const platformFee = itemTotal === 0 || itemTotal >= PRICING.freePlatformFeeOver ? 0 : PRICING.platformFee;
   const taxes = Math.round((itemTotal - discount) * PRICING.taxRate);
   return {
     itemTotal,
     discount,
     deliveryFee,
+    platformFee,
     taxes,
-    total: Math.max(0, itemTotal - discount + deliveryFee + taxes),
+    total: Math.max(0, itemTotal - discount + deliveryFee + platformFee + taxes),
     couponCode: discount > 0 ? couponCode : undefined,
   };
 }

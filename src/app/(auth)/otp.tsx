@@ -57,7 +57,7 @@ export default function OtpScreen() {
         // Role-aware landing. Customer app is the only one in scope for now.
         if (role === 'vendor') router.replace('/(vendor)/dashboard');
         else if (role === 'delivery') router.replace('/(delivery)/dashboard');
-        else router.replace('/home');
+        else router.replace('/(auth)/setup');
       } else {
         setVerifying(false);
         setError(t('flow.auth.invalidOtp'));

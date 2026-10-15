@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Pressable, TextInput } from 'react-native';
+import { View, StyleSheet, Pressable, TextInput, ScrollView, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import {
@@ -18,6 +18,7 @@ import {
   User as UserIcon,
   Wallet,
   LogOut,
+  Heart,
 } from 'lucide-react-native';
 import { AppText } from '../../components/AppText';
 import { AppButton } from '../../components/AppButton';
@@ -25,6 +26,7 @@ import { AppScrollScreen, ScreenHeader } from '../../components/AppScreen';
 import { Theme } from '../../theme';
 import { useLanguage, LOCALES } from '../../context/LanguageContext';
 import { useAppStore } from '../../store/AppStore';
+import { SEED_RESTAURANTS } from '../../data/catalogue';
 
 /**
  * Profile. Shows the signed-in user, editing of name/phone, language switch,
@@ -33,7 +35,14 @@ import { useAppStore } from '../../store/AppStore';
 export default function ProfileScreen() {
   const router = useRouter();
   const { t, language, setLanguage, currency, date } = useLanguage();
-  const { user, isAuthed, signOut, updateUser, orders, subscriptions, reviews, walletBalance } = useAppStore();
+  const label = (en: string, gu: string) => (language === 'gu' ? gu : en);
+  const { user, isAuthed, signOut, updateUser, orders, subscriptions, reviews, walletBalance, favourites } = useAppStore();
+
+  /** Kitchens the customer saved, newest first — resolved against the catalogue. */
+  const savedKitchens = React.useMemo(
+    () => favourites.map((id) => SEED_RESTAURANTS.find((entry) => entry.id === id)).filter(Boolean) as typeof SEED_RESTAURANTS,
+    [favourites],
+  );
 
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(user?.name ?? '');
@@ -153,6 +162,54 @@ export default function ProfileScreen() {
         </View>
       </View>
 
+      {/* saved kitchens — written by the heart on a kitchen page */}
+      <View style={styles.card}>
+        <View style={styles.langHeader}>
+          <Heart size={17} color={Theme.colors.primary} fill={savedKitchens.length ? Theme.colors.primary : 'transparent'} />
+          <AppText variant="h3" style={{ flex: 1 }}>
+            {t('screens.saved.title')}
+          </AppText>
+          <Pressable onPress={() => router.push('/restaurants')} hitSlop={8} accessibilityRole="button">
+            <AppText variant="caption" color={Theme.colors.primary}>
+              {t('screens.saved.viewAll')}
+            </AppText>
+          </Pressable>
+        </View>
+
+        {savedKitchens.length === 0 ? (
+          <AppText variant="bodySmall" color={Theme.colors.textMuted} style={{ marginTop: Theme.spacing.sm }}>
+            {t('screens.saved.empty')}
+          </AppText>
+        ) : (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.savedRow}
+          >
+            {savedKitchens.map((kitchen) => (
+              <Pressable
+                key={kitchen.id}
+                onPress={() => router.push(`/restaurant/${kitchen.id}`)}
+                style={styles.savedCard}
+                accessibilityRole="button"
+              >
+                {kitchen.image ? (
+                  <Image source={kitchen.image} style={styles.savedImage} />
+                ) : (
+                  <View style={[styles.savedImage, styles.savedFallback]} />
+                )}
+                <AppText variant="label" numberOfLines={1}>
+                  {label(kitchen.name, kitchen.nameGu)}
+                </AppText>
+                <AppText variant="caption" color={Theme.colors.textMuted}>
+                  {kitchen.rating} ★ · {kitchen.deliveryMins} {t('flow.common.min')}
+                </AppText>
+              </Pressable>
+            ))}
+          </ScrollView>
+        )}
+      </View>
+
       {/* menu */}
       <View style={styles.menu}>
         {rows.map((row, index) => {
@@ -261,6 +318,10 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   statsRow: { flexDirection: 'row', gap: Theme.spacing.lg, marginTop: Theme.spacing.md },
+  savedRow: { gap: Theme.spacing.md, paddingTop: Theme.spacing.md, paddingRight: Theme.spacing.md },
+  savedCard: { width: 132, gap: 2 },
+  savedImage: { width: 132, height: 84, borderRadius: Theme.borderRadius.md, marginBottom: Theme.spacing.xs },
+  savedFallback: { backgroundColor: Theme.colors.surfaceSecondary },
   stat: { alignItems: 'flex-start' },
   card: {
     backgroundColor: Theme.colors.surface,

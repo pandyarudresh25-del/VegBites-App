@@ -43,7 +43,7 @@ const LABEL_ICON: Record<AddressLabel, typeof HomeIcon> = {
  */
 export default function AddressScreen() {
   const router = useRouter();
-  const { t, language } = useLanguage();
+  const { t } = useLanguage();
   const { addresses, selectedAddress, addAddress, selectAddress } = useAppStore();
 
   const [showForm, setShowForm] = useState(false);

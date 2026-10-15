@@ -150,51 +150,51 @@ export const SEED_MENU: import('../domain/types').MenuItem[] = [
 
 export const SEED_PLANS: TiffinPlan[] = [
   {
-    id: 'plan-trial',
-    name: '3-Day Trial',
-    nameGu: '૩ દિવસનું ટ્રાયલ',
-    cadence: 'trial',
-    price: 299,
-    meals: 3,
-    diet: ['veg'],
-    includes: ['2 rotli, 1 sabji, dal, rice', 'Free delivery', 'Cancel anytime'],
-    includesGu: ['૨ રોટલી, ૧ શાક, દાળ, ભાત', 'મફત ડિલિવરી', 'ક્યારેય રદ કરો'],
-  },
-  {
-    id: 'plan-weekly',
-    name: 'Weekly Plan',
-    nameGu: 'સાપ્તાહિક પ્લાન',
+    id: 'plan-7',
+    name: '7 Days Plan',
+    nameGu: '૭ દિવસ પ્લાન',
     cadence: 'weekly',
     price: 699,
-    mrp: 840,
     meals: 7,
     diet: ['veg'],
-    includes: ['Rotating daily menu', 'Lunch or dinner slot', 'Pause up to 2 days'],
-    includesGu: ['રોજ બદલાતું મેનૂ', 'લંચ કે ડિનર સ્લોટ', '૨ દિવસ થોભાવો'],
+    includes: ['1 full tiffin a day', 'Free delivery', 'Cancel anytime'],
+    includesGu: ['દિવસમાં ૧ પૂરું ટિફિન', 'મફત ડિલિવરી', 'ક્યારેય રદ કરો'],
   },
   {
-    id: 'plan-monthly',
+    id: 'plan-15',
+    name: '15 Days Plan',
+    nameGu: '૧૫ દિવસ પ્લાન',
+    cadence: 'fortnight',
+    price: 1499,
+    mrp: 1650,
+    meals: 15,
+    diet: ['veg'],
+    includes: ['1 full tiffin a day', 'Free delivery', '1 free add-on a week'],
+    includesGu: ['દિવસમાં ૧ પૂરું ટિફિન', 'મફત ડિલિવરી', 'અઠવાડિયે ૧ મફત એડ-ઓન'],
+  },
+  {
+    id: 'plan-30',
     name: 'Monthly Plan',
     nameGu: 'માસિક પ્લાન',
     cadence: 'monthly',
-    price: 2200,
-    mrp: 2800,
-    meals: 26,
+    price: 2799,
+    mrp: 3300,
+    meals: 30,
     diet: ['veg'],
-    includes: ['Full thali every day', 'Free delivery', 'Skip days when travelling', 'Priority support'],
-    includesGu: ['રોજ પૂરી થાળી', 'મફત ડિલિવરી', 'મુસાફરીમાં દિવસ સ્કિપ કરો', 'પ્રાયોરિટી સપોર્ટ'],
+    includes: ['1 full tiffin a day', 'Free delivery', '2 free add-ons a week'],
+    includesGu: ['દિવસમાં ૧ પૂરું ટિફિન', 'મફત ડિલિવરી', 'અઠવાડિયે ૨ મફત એડ-ઓન'],
     isPopular: true,
   },
   {
-    id: 'plan-jain',
+    id: 'plan-jain-30',
     name: 'Jain Monthly Plan',
     nameGu: 'જૈન માસિક પ્લાન',
     cadence: 'monthly',
-    price: 2400,
-    meals: 26,
+    price: 2999,
+    meals: 30,
     diet: ['veg', 'jain', 'noOnionGarlic'],
-    includes: ['Strictly no onion-garlic', 'No root vegetables', 'Separate kitchen line'],
-    includesGu: ['કાંદો-લસણ વગર', 'કંદમૂળ વગર', 'અલગ રસોઈ લાઇન'],
+    includes: ['No onion, no garlic, no root veg', 'Free delivery', 'Separate Jain kitchen'],
+    includesGu: ['કાંદો, લસણ, કંદમૂળ વગર', 'મફત ડિલિવરી', 'અલગ જૈન રસોડું'],
   },
 ];
 
@@ -239,4 +239,54 @@ export const SEED_ADDONS: import('../domain/types').MenuItem[] = [
   { id: 'a3', restaurantId: 'r1', name: 'Roasted Papad', nameGu: 'શેકેલું પાપડ', description: 'Crisp papad, roasted not fried', descriptionGu: 'કડક પાપડ, તળેલું નહીં, શેકેલું', price: 15, image: IMAGES.gujaratiThali, diet: ['veg'], category: 'Add-ons', available: true },
   { id: 'a4', restaurantId: 'r1', name: 'Shrikhand', nameGu: 'શ્રીખંડ', description: 'Saffron hung curd, chilled', descriptionGu: 'કેસરવાળું શ્રીખંડ, ઠંડું', price: 45, image: IMAGES.gujaratiThali, diet: ['veg'], category: 'Add-ons', available: true },
   { id: 'a5', restaurantId: 'r1', name: 'Extra Rotli (2 pcs)', nameGu: 'વધારાની રોટલી (૨ નંગ)', description: 'Two more phulka rotli', descriptionGu: 'બે વધારાની ફૂલકા રોટલી', price: 20, image: IMAGES.gujaratiThali, diet: ['veg'], category: 'Add-ons', available: true },
+  { id: 'a6', restaurantId: 'r1', name: 'Mango Pickle', nameGu: 'આથાણું', description: 'Sun-cured Gujarati mango athanu', descriptionGu: 'તડકામાં સુકાયેલું ગુજરાતી આથાણું', price: 15, image: IMAGES.jainFood, diet: ['veg'], category: 'Add-ons', available: true },
+  { id: 'a7', restaurantId: 'r1', name: 'Gulab Jamun (2 pcs)', nameGu: 'ગુલાબ જામુન (૨ નંગ)', description: 'Warm milk dumplings in syrup', descriptionGu: 'ગરમ દૂધના ગુલાબ જામુન, રસમાં', price: 40, image: IMAGES.punjabiThali, diet: ['veg'], category: 'Dessert', available: true },
+  { id: 'a8', restaurantId: 'r1', name: 'Aam Ras', nameGu: 'આમ રસ', description: 'Seasonal sweet mango pulp', descriptionGu: 'મોસમી ગળો કેરી રસ', price: 50, image: IMAGES.punjabiThali, diet: ['veg'], category: 'Dessert', available: true },
 ];
+
+/**
+ * Tiffin component menu.
+ *
+ * The build spec fixes these categories: Full Tiffin, Rotli/Rotla, Sabji,
+ * Dal/Rice, Kathol, Salad, Buttermilk and Add-ons. They are shared across the
+ * tiffin kitchens (home-style kitchens cook the same menu), so `restaurantId`
+ * is the shared 'tiffin' scope rather than a single vendor id.
+ */
+export const SEED_TIFFIN_MENU: import('../domain/types').MenuItem[] = [
+  { id: 't1', restaurantId: 'tiffin', name: 'Full Tiffin', nameGu: 'પૂરું ટિફિન', description: '4 rotli, 2 sabji, dal, rice, kathol, salad, chaas', descriptionGu: '૪ રોટલી, ૨ શાક, દાળ, ભાત, કઠોળ, સલાડ, છાશ', price: 140, mrp: 170, image: IMAGES.gujaratiThali, diet: ['veg'], isBestseller: true, category: 'Full Tiffin', available: true },
+  { id: 't2', restaurantId: 'tiffin', name: 'Mini Tiffin', nameGu: 'મિની ટિફિન', description: '2 rotli, 1 sabji, dal, rice, salad', descriptionGu: '૨ રોટલી, ૧ શાક, દાળ, ભાત, સલાડ', price: 99, image: IMAGES.gujaratiThali, diet: ['veg'], category: 'Full Tiffin', available: true },
+  { id: 't3', restaurantId: 'tiffin', name: 'Rotli (2 pcs)', nameGu: 'રોટલી (૨ નંગ)', description: 'Soft phulka rotli, ghee brushed', descriptionGu: 'માખણ લગાવેલી નરમ ફૂલકા રોટલી', price: 20, image: IMAGES.gujaratiThali, diet: ['veg'], category: 'Rotli/Rotla', available: true },
+  { id: 't4', restaurantId: 'tiffin', name: 'Bhakhri (2 pcs)', nameGu: 'ભાખરી (૨ નંગ)', description: 'Thick wheat bhakhri, stays warm', descriptionGu: 'જાડી ઘઉંની ભાખરી, ગરમ રહે છે', price: 30, image: IMAGES.gujaratiThali, diet: ['veg'], category: 'Rotli/Rotla', available: true },
+  { id: 't5', restaurantId: 'tiffin', name: 'Sev Tameta nu Shaak', nameGu: 'સેવ ટામેટા નું શાક', description: 'Tangy tomato gravy with sev', descriptionGu: 'ખાટી ટામેટા ગ્રેવીમાં સેવ', price: 70, image: IMAGES.gujaratiThali, diet: ['veg'], isSpicy: true, category: 'Sabji', available: true },
+  { id: 't6', restaurantId: 'tiffin', name: 'Ringan no Olo', nameGu: 'રીંગણ નો ઓળો', description: 'Smoked brinjal mash, Kathiyawadi style', descriptionGu: 'ધુમાડિયું રીંગણ, કાઠિયાવાડી શૈલી', price: 80, image: IMAGES.gujaratiThali, diet: ['veg'], category: 'Sabji', available: true },
+  { id: 't7', restaurantId: 'tiffin', name: 'Dal (300 ml)', nameGu: 'દાળ (૩૦૦ મિ.લી.)', description: 'Gujarati sweet dal, tempered', descriptionGu: 'ગુજરાતી ગળી દાળ, વઘારેલી', price: 60, image: IMAGES.gujaratiThali, diet: ['veg'], category: 'Dal/Rice', available: true },
+  { id: 't8', restaurantId: 'tiffin', name: 'Jeera Rice', nameGu: 'જીરા ભાત', description: 'Basmati rice tempered with cumin', descriptionGu: 'જીરાથી વઘારેલો બાસમતી ભાત', price: 70, image: IMAGES.gujaratiThali, diet: ['veg'], category: 'Dal/Rice', available: true },
+  { id: 't9', restaurantId: 'tiffin', name: 'Kathol', nameGu: 'કઠોળ', description: 'Mixed sprouted legumes, home style', descriptionGu: 'મિક્સ ફણગાવેલા કઠોળ, ઘરેલું', price: 70, image: IMAGES.jainFood, diet: ['veg', 'jain'], category: 'Kathol', available: true },
+  { id: 't10', restaurantId: 'tiffin', name: 'Green Salad', nameGu: 'ગ્રીન સલાડ', description: 'Cucumber, tomato, carrot, lemon', descriptionGu: 'કાકડી, ટામેટા, ગાજર, લીંબુ', price: 30, image: IMAGES.jainFood, diet: ['veg'], category: 'Salad', available: true },
+  { id: 't11', restaurantId: 'tiffin', name: 'Chaas (Buttermilk)', nameGu: 'છાશ', description: 'Chilled chaas with roasted cumin', descriptionGu: 'ભુકા જીરા સાથે ઠંડી છાશ', price: 25, image: IMAGES.southIndian, diet: ['veg'], category: 'Buttermilk', available: true },
+  { id: 't12', restaurantId: 'tiffin', name: 'Extra Farsan', nameGu: 'વધારાનું ફરસાણ', description: 'Dhokla or khaman of the day', descriptionGu: 'દિવસનું ઢોકળા કે ખમણ', price: 35, image: IMAGES.gujaratiThali, diet: ['veg'], category: 'Add-ons', available: true },
+];
+
+/**
+ * Seeded comment threads for the reels feed — the feed ships with real-looking
+ * social context, and any comment the customer writes is appended in the store.
+ */
+export const SEED_REEL_COMMENTS: Record<
+  string,
+  { author: string; authorGu: string; text: string; textGu: string; minsAgo: number }[]
+> = {
+  reel1: [
+    { author: 'Hetal P.', authorGu: 'હેતલ પ.', text: 'Same thali every Sunday for us. Never disappoints.', textGu: 'અમારા માટે દર રવિવારે એ જ થાળી. ક્યારેય નિરાશ નથી કર્યા.', minsAgo: 24 },
+    { author: 'Rutvik M.', authorGu: 'રૂત્વિક એમ.', text: 'Ask for extra kadhi, thank me later.', textGu: 'વધારે કઢી માંગો, પછી મને યાદ કરશો.', minsAgo: 96 },
+  ],
+  reel2: [
+    { author: 'Meera S.', authorGu: 'મીરા એસ.', text: 'Finally a Jain thali with real taste.', textGu: 'છેવટે સાચો સ્વાદ ધરાવતી જૈન થાળી.', minsAgo: 58 },
+  ],
+  reel3: [
+    { author: 'Nikhil D.', authorGu: 'નિખિલ ડી.', text: 'Crispiest dosa in Rajkot, no contest.', textGu: 'રાજકોટમાં સૌથી કડક ડોસા, કોઈ સવાલ નહીં.', minsAgo: 12 },
+    { author: 'Priya V.', authorGu: 'પ્રિયા વી.', text: 'Ordered after watching this reel. Worth it.', textGu: 'આ રીલ જોઈને ઓર્ડર કર્યો. વસૂલ.', minsAgo: 240 },
+  ],
+  reel4: [
+    { author: 'Aman T.', authorGu: 'અમન ટી.', text: 'Naan + dal makhani combo is unbeatable.', textGu: 'નાન + દાળ મખનીનું કોમ્બો બેજોડ છે.', minsAgo: 33 },
+  ],
+};

@@ -5,11 +5,11 @@
  * (`colors`, `typography`, `spacing`, `borderRadius`, `shadows`); motion,
  * layout and gradients are additive.
  */
-import { Colors, palette, withAlpha } from './colors';
+import { Colors, palette, states, withAlpha } from './colors';
 import { Typography, FontWeight } from './typography';
 import { Spacing, BorderRadius, Shadows, Motion, Layout } from './spacing';
 
-export { Colors, palette, withAlpha, Typography, FontWeight, Spacing, BorderRadius, Shadows, Motion, Layout };
+export { Colors, palette, states, withAlpha, Typography, FontWeight, Spacing, BorderRadius, Shadows, Motion, Layout };
 
 export const Gradients = {
   /** Primary CTA / header wash. */

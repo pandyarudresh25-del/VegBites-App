@@ -1,5 +1,5 @@
 import React from 'react';
-import { TouchableOpacityProps, StyleSheet, ActivityIndicator, TouchableOpacity, ViewStyle } from 'react-native';
+import { TouchableOpacityProps, StyleSheet, ActivityIndicator, TouchableOpacity, View, ViewStyle } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { Theme } from '../theme';
 import { AppText } from './AppText';
@@ -11,6 +11,8 @@ interface AppButtonProps extends TouchableOpacityProps {
   variant?: 'primary' | 'secondary' | 'outline' | 'text';
   isLoading?: boolean;
   fullWidth?: boolean;
+  /** Optional trailing element (an icon) rendered beside the label. */
+  rightIcon?: React.ReactNode;
 }
 
 export const AppButton: React.FC<AppButtonProps> = ({
@@ -18,6 +20,7 @@ export const AppButton: React.FC<AppButtonProps> = ({
   variant = 'primary',
   isLoading = false,
   fullWidth = true,
+  rightIcon,
   style,
   disabled,
   onPressIn,
@@ -89,18 +92,23 @@ export const AppButton: React.FC<AppButtonProps> = ({
       {isLoading ? (
         <ActivityIndicator color={getTextColor()} />
       ) : (
-        <AppText variant="button" color={getTextColor()}>
-          {title}
-        </AppText>
+        <>
+          <AppText variant="button" color={getTextColor()}>
+            {title}
+          </AppText>
+          {rightIcon ? <View style={styles.iconSlot}>{rightIcon}</View> : null}
+        </>
       )}
     </AnimatedTouchable>
   );
 };
 
 const styles = StyleSheet.create({
+  iconSlot: { marginLeft: Theme.spacing.sm },
   container: {
     height: 52, // Increased height for premium feel
     borderRadius: Theme.borderRadius.md,
+    flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: Theme.spacing.lg,

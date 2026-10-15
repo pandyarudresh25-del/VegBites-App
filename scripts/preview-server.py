@@ -99,7 +99,10 @@ class CleanUrlHandler(http.server.SimpleHTTPRequestHandler):
             index = os.path.join(local, "index.html")
             if os.path.exists(index):
                 return index
-        if os.path.exists(local):
+        # NOTE: a directory is *not* a hit. Expo writes both `orders.html` and an
+        # `orders/[id].html` directory for a page that also has child routes, so
+        # returning the directory here made every such page answer 301 -> /orders/.
+        if os.path.isfile(local):
             return local
         if not local.endswith(".html"):
             for candidate in (local + ".html", *self._group_variants(local + ".html")):

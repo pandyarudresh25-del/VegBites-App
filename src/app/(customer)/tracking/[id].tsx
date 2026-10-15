@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import Animated, { FadeInDown, FadeIn, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
@@ -9,6 +9,7 @@ import {
   MessageSquare,
   Phone,
   Star,
+  KeyRound,
   MapPin,
   Package,
 } from 'lucide-react-native';
@@ -18,7 +19,16 @@ import { AppScrollScreen, ScreenHeader, EmptyState } from '../../../components/A
 import { Theme } from '../../../theme';
 import { useLanguage } from '../../../context/LanguageContext';
 import { useAppStore } from '../../../store/AppStore';
-import { ORDER_FLOW, STATUS_KEY, STATUS_NOTE_KEY, OrderStatus } from '../../../domain/types';
+import {
+  ORDER_FLOW,
+  STATUS_KEY,
+  STATUS_NOTE_KEY,
+  STAGE_KEY,
+  STAGE_OF_STATUS,
+  TRACKING_STAGES,
+  type OrderStatus,
+  type TrackingStage,
+} from '../../../domain/types';
 
 const ACTIVE_STATUSES: OrderStatus[] = ['placed', 'confirmed', 'preparing', 'packed', 'picked_up', 'out_for_delivery'];
 
@@ -35,10 +45,9 @@ export default function TrackingScreen() {
   const router = useRouter();
   const { t, currency, time, language } = useLanguage();
   const label = (en: string, gu: string) => (language === 'gu' ? gu : en);
-  const { orders, advanceOrder } = useAppStore();
+  const { orders, advanceOrder, reduceMotion } = useAppStore();
 
   const order = useMemo(() => orders.find((o) => o.id === id), [orders, id]);
-  const [pulse, setPulse] = useState(true);
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // --- live progression ---------------------------------------------------
@@ -51,15 +60,18 @@ export default function TrackingScreen() {
     return () => {
       if (tickRef.current) clearInterval(tickRef.current);
     };
-  }, [order?.id, order?.status, advanceOrder]);
+  }, [order, advanceOrder, reduceMotion]);
 
   // --- "LIVE" dot pulse ---------------------------------------------------
+  // Skipped entirely when the customer asked for reduced motion.
   const opacity = useSharedValue(1);
   useEffect(() => {
+    if (reduceMotion) {
+      opacity.value = 1;
+      return;
+    }
     opacity.value = withRepeat(withTiming(0.25, { duration: 700 }), -1, true);
-    const timer = setInterval(() => setPulse((p) => !p), 1200);
-    return () => clearInterval(timer);
-  }, [opacity]);
+  }, [opacity, reduceMotion]);
   const pulseStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
 
   if (!order) {
@@ -85,7 +97,14 @@ export default function TrackingScreen() {
 
   const isDone = order.status === 'delivered';
   const isCancelled = order.status === 'cancelled';
-  const currentIndex = ORDER_FLOW.indexOf(order.status);
+  // The customer sees the six required stages; the internal status is finer-grained.
+  const currentStage = STAGE_OF_STATUS[order.status];
+  const stageIndex = TRACKING_STAGES.indexOf(currentStage);
+  const stageReachedAt = (stage: TrackingStage) =>
+    ORDER_FLOW.filter((status) => STAGE_OF_STATUS[status] === stage)
+      .map((status) => order.timeline[status])
+      .filter((value): value is number => typeof value === 'number')
+      .sort((a, b) => a - b)[0];
   const isLive = ACTIVE_STATUSES.includes(order.status);
 
   return (
@@ -154,7 +173,7 @@ export default function TrackingScreen() {
             <View
               style={[
                 styles.railFill,
-                { width: `${(Math.max(currentIndex, 0) / (ORDER_FLOW.length - 1)) * 100}%` },
+                { width: `${(Math.max(stageIndex, 0) / (TRACKING_STAGES.length - 1)) * 100}%` },
               ]}
             />
           </View>
@@ -208,17 +227,17 @@ export default function TrackingScreen() {
           <AppText variant="h3" style={{ marginBottom: Theme.spacing.md }}>
             {t('flow.tracking.progress')}
           </AppText>
-          {ORDER_FLOW.map((status, index) => {
-            const reached = index <= currentIndex && !isCancelled;
-            const isCurrent = index === currentIndex && !isDone && !isCancelled;
-            const at = order.timeline[status];
+          {TRACKING_STAGES.map((stage, index) => {
+            const reached = index <= stageIndex && !isCancelled;
+            const isCurrent = index === stageIndex && !isDone && !isCancelled;
+            const at = stageReachedAt(stage);
             return (
-              <View key={status} style={styles.stepRow}>
+              <View key={stage} style={styles.stepRow}>
                 <View style={styles.stepRail}>
                   <View style={[styles.stepDot, reached && styles.stepDotDone, isCurrent && styles.stepDotCurrent]}>
                     {reached && !isCurrent ? <Check size={11} color={Theme.colors.surface} strokeWidth={3} /> : null}
                   </View>
-                  {index < ORDER_FLOW.length - 1 ? (
+                  {index < TRACKING_STAGES.length - 1 ? (
                     <View style={[styles.stepLine, reached && styles.stepLineDone]} />
                   ) : null}
                 </View>
@@ -227,16 +246,40 @@ export default function TrackingScreen() {
                     variant={isCurrent ? 'h3' : 'bodySmall'}
                     color={reached ? Theme.colors.text : Theme.colors.textMuted}
                   >
-                    {t(STATUS_KEY[status])}
+                    {t(STAGE_KEY[stage])}
                   </AppText>
                   <AppText variant="caption" color={reached ? Theme.colors.textSecondary : Theme.colors.textMuted}>
-                    {at ? time(at) : t(STATUS_NOTE_KEY[status])}
+                    {at
+                      ? time(at)
+                      : t(
+                          STATUS_NOTE_KEY[
+                            ORDER_FLOW.find((status) => STAGE_OF_STATUS[status] === stage) ?? 'placed'
+                          ],
+                        )}
                   </AppText>
                 </View>
               </View>
             );
           })}
         </Animated.View>
+
+        {/* --- delivery OTP --- */}
+        {!isDone && !isCancelled ? (
+          <Animated.View entering={FadeInDown.delay(140).duration(Theme.motion.base)} style={styles.otpCard}>
+            <View style={styles.rowBetween}>
+              <AppText variant="h3" color={Theme.colors.surface}>
+                {t('flow.tracking.deliveryOtp')}
+              </AppText>
+              <KeyRound size={16} color={Theme.colors.surface} />
+            </View>
+            <AppText variant="h1" color={Theme.colors.surface} style={styles.otpValue}>
+              {order.deliveryOtp}
+            </AppText>
+            <AppText variant="caption" color={Theme.colors.surface} style={{ opacity: 0.9 }}>
+              {t('flow.tracking.deliveryOtpHint')}
+            </AppText>
+          </Animated.View>
+        ) : null}
 
         {/* --- delivery address + summary --- */}
         <Animated.View entering={FadeInDown.delay(160).duration(Theme.motion.base)} style={styles.card}>
@@ -313,6 +356,13 @@ const styles = StyleSheet.create({
   },
   railFill: { height: '100%', borderRadius: 3, backgroundColor: Theme.colors.success },
   railLabels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: Theme.spacing.sm },
+  otpCard: {
+    backgroundColor: Theme.colors.primary,
+    borderRadius: Theme.borderRadius.lg,
+    padding: Theme.spacing.lg,
+    gap: Theme.spacing.xs,
+  },
+  otpValue: { letterSpacing: 6, marginTop: Theme.spacing.xs },
   card: {
     backgroundColor: Theme.colors.surface,
     borderRadius: Theme.borderRadius.xl,

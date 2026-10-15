@@ -10,6 +10,8 @@ import {
   WalletCards,
   ShieldCheck,
   XCircle,
+  Building2,
+  Smartphone,
 } from 'lucide-react-native';
 import { AppText } from '../../components/AppText';
 import { AppButton } from '../../components/AppButton';
@@ -22,10 +24,13 @@ import type { PaymentMethod } from '../../domain/types';
 type Stage = 'idle' | 'processing' | 'failed';
 
 const METHOD_ICONS: Record<PaymentMethod, typeof Banknote> = {
+  cod: Banknote,
   upi: Landmark,
+  gpay: Smartphone,
+  phonepe: Smartphone,
+  netbanking: Building2,
   card: CreditCard,
   wallet: WalletCards,
-  cod: Banknote,
 };
 
 /**
@@ -222,6 +227,12 @@ export default function PaymentsScreen() {
                 </Pressable>
 
                 {/* method-specific fields */}
+                {active && (key === 'gpay' || key === 'phonepe') ? (
+                  <AppText variant="caption" color={Theme.colors.textMuted} style={styles.fieldGroup}>
+                    {t('flow.payment.appRedirect')}
+                  </AppText>
+                ) : null}
+
                 {active && key === 'upi' ? (
                   <View style={styles.fieldGroup}>
                     <TextInput

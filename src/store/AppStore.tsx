@@ -23,11 +23,13 @@ import React, {
 } from 'react';
 import {
   Address,
+  ReelComment,
   Bill,
   CartLine,
   ChatMessage,
   SupportTicket,
   SupportTopic,
+  TiffinSlot,
   Courier,
   MenuItem,
   Order,
@@ -58,6 +60,23 @@ type PersistedState = {
   reviews: Review[];
   tickets: SupportTicket[];
   chat: ChatMessage[];
+  /** Restaurant ids the customer has saved. */
+  favourites: string[];
+  /** Chosen tiffin window; persists across the tiffin funnel. */
+  slot?: TiffinSlot;
+  /** Special instructions carried from cart/checkout into the placed order. */
+  instructions?: string;
+  /** Menu items the vendor has marked sold out. */
+  soldOutItemIds: string[];
+  /** Delivery partner availability (delivery app). */
+  courierOnline: boolean;
+  /** Respects a reduced-motion preference for entrance animations. */
+  reduceMotion: boolean;
+  /** Reel ids the customer liked / saved — persisted so the feed remembers them. */
+  likedReels: string[];
+  savedReels: string[];
+  /** Customer-written reel comments, keyed by reel id. */
+  reelComments: Record<string, ReelComment[]>;
 };
 
 const initialState: PersistedState = {
@@ -81,6 +100,15 @@ const initialState: PersistedState = {
   reviews: [],
   tickets: [],
   chat: [],
+  favourites: [],
+  slot: undefined,
+  instructions: undefined,
+  soldOutItemIds: [],
+  courierOnline: true,
+  reduceMotion: false,
+  likedReels: [],
+  savedReels: [],
+  reelComments: {},
 };
 
 const COURIERS: Courier[] = [
@@ -145,6 +173,29 @@ type AppStoreValue = {
   walletTxns: WalletTxn[];
   addMoney: (amount: number) => void;
 
+  // --- saved items / vendor ops / preferences ---
+  favourites: string[];
+  toggleFavourite: (restaurantId: string) => void;
+  slot?: TiffinSlot;
+  setSlot: (slot: TiffinSlot) => void;
+  instructions?: string;
+  setInstructions: (value: string) => void;
+  soldOutItemIds: string[];
+  toggleSoldOut: (itemId: string) => void;
+  courierOnline: boolean;
+  setCourierOnline: (online: boolean) => void;
+  reduceMotion: boolean;
+  setReduceMotion: (value: boolean) => void;
+
+  // --- reels ---
+  likedReels: string[];
+  savedReels: string[];
+  toggleReelLike: (reelId: string) => void;
+  toggleReelSave: (reelId: string) => void;
+  reelComments: Record<string, ReelComment[]>;
+  /** Appends the customer's own comment to a reel and returns it. */
+  addReelComment: (reelId: string, text: string) => ReelComment;
+
   // --- support ---
   tickets: SupportTicket[];
   /** Creates a support ticket and returns its reference id. */
@@ -155,7 +206,17 @@ type AppStoreValue = {
 
   // --- reviews ---
   reviews: Review[];
-  submitReview: (input: { orderId: string; restaurantId?: string; restaurantName: string; restaurantNameGu: string; rating: number; text: string; image?: number }) => void;
+  submitReview: (input: {
+    orderId: string;
+    restaurantId?: string;
+    restaurantName: string;
+    restaurantNameGu: string;
+    rating: number;
+    foodRating: number;
+    deliveryRating: number;
+    text: string;
+    image?: number;
+  }) => void;
 };
 
 const AppStoreContext = createContext<AppStoreValue | null>(null);
@@ -382,6 +443,9 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         address,
         courier: method === 'cod' ? COURIERS[0] : COURIERS[Math.floor(Math.random() * COURIERS.length)],
         etaMins: 28,
+        deliveryOtp: String(1000 + Math.floor(Math.random() * 8999)),
+        ...(state.instructions ? { instructions: state.instructions } : null),
+        ...(state.slot ? { slot: state.slot } : null),
       };
 
       patch((prev) => {
@@ -415,7 +479,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
 
       return order;
     },
-    [bill, patch, state.addresses, state.cart],
+    [bill, patch, state.addresses, state.cart, state.instructions, state.slot],
   );
 
   const advanceOrder = useCallback(
@@ -506,7 +570,8 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       // eat the shortfall. Refuse instead and let the caller send them to top up.
       if (state.walletBalance < plan.price) return null;
       const now = Date.now();
-      const days = plan.cadence === 'trial' ? 3 : plan.cadence === 'weekly' ? 7 : 30;
+      // Plan length in days — the four cadences map to 3 / 7 / 15 / 30 days.
+      const days = plan.cadence === 'trial' ? 3 : plan.cadence === 'weekly' ? 7 : plan.cadence === 'fortnight' ? 15 : 30;
       const subscription: Subscription = {
         id: newId('sub'),
         planId: plan.id,
@@ -564,6 +629,87 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
   );
 
   // ---------------------------------------------------------------- reviews
+  const toggleFavourite = useCallback(
+    (restaurantId: string) =>
+      patch((prev) => ({
+        ...prev,
+        favourites: prev.favourites.includes(restaurantId)
+          ? prev.favourites.filter((id) => id !== restaurantId)
+          : [...prev.favourites, restaurantId],
+      })),
+    [patch],
+  );
+
+  const setSlot = useCallback((slot: TiffinSlot) => patch((prev) => ({ ...prev, slot })), [patch]);
+
+  const setInstructions = useCallback(
+    (value: string) => patch((prev) => ({ ...prev, instructions: value.trim() ? value.trim() : undefined })),
+    [patch],
+  );
+
+  /** Vendor menu management: take a dish off the menu (and put it back). */
+  const toggleSoldOut = useCallback(
+    (itemId: string) =>
+      patch((prev) => ({
+        ...prev,
+        soldOutItemIds: prev.soldOutItemIds.includes(itemId)
+          ? prev.soldOutItemIds.filter((id) => id !== itemId)
+          : [...prev.soldOutItemIds, itemId],
+      })),
+    [patch],
+  );
+
+  const setCourierOnline = useCallback(
+    (online: boolean) => patch((prev) => ({ ...prev, courierOnline: online })),
+    [patch],
+  );
+
+  const setReduceMotion = useCallback(
+    (value: boolean) => patch((prev) => ({ ...prev, reduceMotion: value })),
+    [patch],
+  );
+
+  // -------------------------------------------------------------------- reels
+  const toggleReelLike = useCallback(
+    (reelId: string) =>
+      patch((prev) => ({
+        ...prev,
+        likedReels: prev.likedReels.includes(reelId)
+          ? prev.likedReels.filter((id) => id !== reelId)
+          : [...prev.likedReels, reelId],
+      })),
+    [patch],
+  );
+
+  const toggleReelSave = useCallback(
+    (reelId: string) =>
+      patch((prev) => ({
+        ...prev,
+        savedReels: prev.savedReels.includes(reelId)
+          ? prev.savedReels.filter((id) => id !== reelId)
+          : [...prev.savedReels, reelId],
+      })),
+    [patch],
+  );
+
+  const addReelComment = useCallback(
+    (reelId: string, text: string) => {
+      const comment: ReelComment = {
+        id: newId('rc'),
+        author: state.user?.name ?? 'You',
+        text: text.trim(),
+        at: Date.now(),
+        mine: true,
+      };
+      patch((prev) => ({
+        ...prev,
+        reelComments: { ...prev.reelComments, [reelId]: [...(prev.reelComments[reelId] ?? []), comment] },
+      }));
+      return comment;
+    },
+    [patch, state.user?.name],
+  );
+
   const submitTicket = useCallback(
     (input: { topic: SupportTopic; message: string }) => {
       const now = Date.now();
@@ -611,7 +757,17 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
   );
 
   const submitReview = useCallback(
-    (input: { orderId: string; restaurantId?: string; restaurantName: string; restaurantNameGu: string; rating: number; text: string; image?: number }) =>
+    (input: {
+      orderId: string;
+      restaurantId?: string;
+      restaurantName: string;
+      restaurantNameGu: string;
+      rating: number;
+      foodRating: number;
+      deliveryRating: number;
+      text: string;
+      image?: number;
+    }) =>
       patch((prev) => ({
         ...prev,
         reviews: [{ ...input, id: newId('review'), createdAt: Date.now() }, ...prev.reviews],
@@ -671,6 +827,26 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       reviews: state.reviews,
       submitReview,
 
+      favourites: state.favourites,
+      toggleFavourite,
+      slot: state.slot,
+      setSlot,
+      instructions: state.instructions,
+      setInstructions,
+      soldOutItemIds: state.soldOutItemIds,
+      toggleSoldOut,
+      courierOnline: state.courierOnline,
+      setCourierOnline,
+      reduceMotion: state.reduceMotion,
+      setReduceMotion,
+
+      likedReels: state.likedReels,
+      savedReels: state.savedReels,
+      toggleReelLike,
+      toggleReelSave,
+      reelComments: state.reelComments,
+      addReelComment,
+
       tickets: state.tickets,
       submitTicket,
       chat: state.chat,
@@ -680,7 +856,9 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     ready, state, itemTotal, bill, signIn, signOut, updateUser, addAddress, selectAddress,
     addItem, addPlan, setQuantity, removeLine, clearCart, applyCoupon, removeCoupon,
     placeOrder, advanceOrder, cancelOrder, reorder, subscribeToPlan, setSubscriptionStatus,
-    skipNextDelivery, addMoney, submitReview, submitTicket, sendChatMessage, state.walletBalance,
+    skipNextDelivery, addMoney, submitReview, submitTicket, sendChatMessage,
+    toggleReelLike, toggleReelSave, addReelComment, toggleFavourite, setSlot, setInstructions,
+    toggleSoldOut, setCourierOnline, setReduceMotion,
   ]);
 
   return <AppStoreContext.Provider value={value}>{children}</AppStoreContext.Provider>;

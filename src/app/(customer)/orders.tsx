@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, StyleSheet, Pressable, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { Clock, Package, RefreshCw, Star, X } from 'lucide-react-native';
+import { FileText, Clock, Package, RefreshCw, Star, X } from 'lucide-react-native';
 import { AppText } from '../../components/AppText';
 import { AppButton } from '../../components/AppButton';
 import { AppScrollScreen, EmptyState } from '../../components/AppScreen';
@@ -74,6 +74,14 @@ export default function OrdersScreen() {
           </View>
 
           <View style={styles.footerRow}>
+            <Pressable
+              onPress={() => router.push(`/orders/${order.id}` as never)}
+              style={styles.ghostAction}
+              accessibilityRole="button"
+            >
+              <FileText size={13} color={Theme.colors.text} />
+              <AppText variant="caption">{t('flow.orders.viewDetails')}</AppText>
+            </Pressable>
             <AppText variant="h3">{currency(order.bill.total)}</AppText>
             {isActive ? (
               <Pressable

@@ -8,7 +8,7 @@ import { AppButton } from '../../../../components/AppButton';
 import { AppScrollScreen, EmptyState, ScreenHeader } from '../../../../components/AppScreen';
 import { Theme } from '../../../../theme';
 import { useLanguage } from '../../../../context/LanguageContext';
-import { SEED_MENU, SEED_PLANS, SEED_RESTAURANTS } from '../../../../data/catalogue';
+import { SEED_PLANS, SEED_RESTAURANTS, SEED_TIFFIN_MENU } from '../../../../data/catalogue';
 
 /**
  * Tiffin kitchen hub.
@@ -25,7 +25,9 @@ export default function TiffinVendorScreen() {
   const label = (en: string, gu: string) => (language === 'gu' ? gu : en);
 
   const vendor = useMemo(() => SEED_RESTAURANTS.find((r) => r.id === id), [id]);
-  const menu = useMemo(() => SEED_MENU.filter((item) => item.restaurantId === id), [id]);
+  // Home-style kitchens share the tiffin component menu (Full Tiffin, Rotli/Rotla,
+  // Sabji, Dal/Rice, Kathol, Salad, Buttermilk, Add-ons) rather than a restaurant menu.
+  const menu = useMemo(() => SEED_TIFFIN_MENU, []);
   const cheapestPlan = useMemo(() => [...SEED_PLANS].sort((a, b) => a.price - b.price)[0], []);
 
   const back = (

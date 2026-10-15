@@ -3,6 +3,7 @@ import { View, StyleSheet, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import {
+  Activity,
   ArrowLeft,
   Bell,
   ChevronRight,
@@ -30,7 +31,7 @@ import { useAppStore } from '../../store/AppStore';
 export default function SettingsScreen() {
   const router = useRouter();
   const { t, language } = useLanguage();
-  const { user, signOut } = useAppStore();
+  const { user, signOut, reduceMotion, setReduceMotion } = useAppStore();
 
   const [confirming, setConfirming] = useState(false);
 
@@ -86,6 +87,32 @@ export default function SettingsScreen() {
         })}
       </Animated.View>
 
+      {/* accessibility: reduced motion is honoured by every entrance animation */}
+      <Animated.View entering={FadeInDown.delay(70).duration(Theme.motion.base)} style={styles.list}>
+        <View style={styles.row}>
+          <View style={styles.iconWrap}>
+            <Activity size={19} color={Theme.colors.primary} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <AppText variant="h3">{t('screens.settings.motion')}</AppText>
+            <AppText variant="caption" color={Theme.colors.textMuted}>
+              {t('screens.settings.motionHint')}
+            </AppText>
+          </View>
+          <Pressable
+            onPress={() => setReduceMotion(!reduceMotion)}
+            accessibilityRole="switch"
+            accessibilityState={{ checked: reduceMotion }}
+            style={[styles.switchTrack, reduceMotion && styles.switchTrackOn]}
+          >
+            <View style={[styles.switchThumb, reduceMotion && styles.switchThumbOn]} />
+          </Pressable>
+        </View>
+        <AppText variant="caption" color={Theme.colors.textMuted} style={styles.switchState}>
+          {reduceMotion ? t('screens.settings.motionOn') : t('screens.settings.motionOff')}
+        </AppText>
+      </Animated.View>
+
       {user ? (
         <Animated.View entering={FadeInDown.delay(80).duration(Theme.motion.base)} style={styles.logoutBlock}>
           {confirming ? (
@@ -138,6 +165,18 @@ const styles = StyleSheet.create({
     borderColor: Theme.colors.border,
   },
   row: { flexDirection: 'row', alignItems: 'center', paddingVertical: Theme.spacing.lg, gap: Theme.spacing.md },
+  switchTrack: {
+    width: 48,
+    height: 28,
+    borderRadius: Theme.borderRadius.pill,
+    backgroundColor: Theme.colors.disabled,
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  switchTrackOn: { backgroundColor: Theme.colors.success },
+  switchThumb: { width: 22, height: 22, borderRadius: Theme.borderRadius.pill, backgroundColor: Theme.colors.surface },
+  switchThumbOn: { alignSelf: 'flex-end' },
+  switchState: { paddingBottom: Theme.spacing.md, marginTop: -Theme.spacing.sm },
   rowPressed: { opacity: 0.7 },
   divider: { borderBottomWidth: 1, borderBottomColor: Theme.colors.border },
   iconWrap: {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { View, StyleSheet, Pressable, Image, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -10,8 +10,7 @@ import { Theme, palette, withAlpha } from '../../../theme';
 import { useLanguage } from '../../../context/LanguageContext';
 import { useAppStore } from '../../../store/AppStore';
 import { IMAGES, SEED_PLANS, SEED_RESTAURANTS } from '../../../data/catalogue';
-
-type Slot = 'lunch' | 'dinner';
+import { SLOT_WINDOW, TIFFIN_SLOTS } from '../../../domain/types';
 
 /**
  * Tiffin hub — the tab that previously led to a static Morning/Evening screen
@@ -23,7 +22,8 @@ export default function TiffinHubScreen() {
   const { t, language, currency } = useLanguage();
   const { activeSubscription, subscriptions } = useAppStore();
 
-  const [slot, setSlot] = useState<Slot>('lunch');
+  // The chosen window lives in the store so it survives navigation.
+  const { slot, setSlot } = useAppStore();
   const label = (en: string, gu: string) => (language === 'gu' ? gu : en);
 
   const kitchens = SEED_RESTAURANTS.filter((r) => r.cuisines.includes('gujarathi') || r.cuisines.includes('jain'));
@@ -62,7 +62,7 @@ export default function TiffinHubScreen() {
           <Image source={IMAGES.gujaratiThali} style={styles.heroImage} />
           <View style={styles.heroOverlay}>
             <AppText variant="h2" color={Theme.colors.surface}>
-              {t('tiffin.slotLunch') ? t('screens.tiffin.vendorsTitle') : ''}
+              {t('screens.tiffin.vendorsTitle')}
             </AppText>
             <AppText variant="caption" color={Theme.colors.surface} style={{ opacity: 0.9 }}>
               {t('screens.tiffin.vendorsSubtitle')}
@@ -75,9 +75,10 @@ export default function TiffinHubScreen() {
       <View style={{ gap: Theme.spacing.sm }}>
         <AppText variant="eyebrow">{t('screens.tiffin.deliverySlot')}</AppText>
         <View style={styles.slotRow}>
-          {(['lunch', 'dinner'] as const).map((key) => {
+          {TIFFIN_SLOTS.map((key) => {
             const active = slot === key;
-            const Icon = key === 'lunch' ? Sun : Moon;
+            const Icon = key === 'morning' ? Sun : Moon;
+            const window = SLOT_WINDOW[key];
             return (
               <Pressable
                 key={key}
@@ -85,14 +86,15 @@ export default function TiffinHubScreen() {
                 style={[styles.slotCard, active && styles.slotCardActive]}
                 accessibilityRole="radio"
                 accessibilityState={{ selected: active }}
+                accessibilityLabel={key === 'morning' ? t('screens.tiffin.slotMorning') : t('screens.tiffin.slotEvening')}
               >
                 <Icon size={18} color={active ? Theme.colors.surface : Theme.colors.primary} />
                 <View style={{ flex: 1 }}>
                   <AppText variant="h3" color={active ? Theme.colors.surface : Theme.colors.text}>
-                    {key === 'lunch' ? t('screens.tiffin.slotLunch') : t('screens.tiffin.slotDinner')}
+                    {key === 'morning' ? t('screens.tiffin.slotMorning') : t('screens.tiffin.slotEvening')}
                   </AppText>
                   <AppText variant="caption" color={active ? Theme.colors.surface : Theme.colors.textMuted}>
-                    {t('flow.checkout.nowTime')}
+                    {window.start} – {window.end}
                   </AppText>
                 </View>
                 {active ? <Check size={15} color={Theme.colors.surface} strokeWidth={3} /> : null}
@@ -106,7 +108,7 @@ export default function TiffinHubScreen() {
       <View style={{ gap: Theme.spacing.md }}>
         <View style={styles.sectionHeader}>
           <AppText variant="h2">{t('screens.tiffin.choosePlan')}</AppText>
-          <Pressable onPress={() => router.push('/tiffins/plan-monthly/plans')} hitSlop={8}>
+          <Pressable onPress={() => router.push('/plans')} hitSlop={8}>
             <AppText variant="caption" color={Theme.colors.primary}>
               {t('flow.common.viewAll')}
             </AppText>

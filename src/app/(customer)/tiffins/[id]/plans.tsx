@@ -10,7 +10,7 @@ import { Theme, palette, withAlpha } from '../../../../theme';
 import { useLanguage } from '../../../../context/LanguageContext';
 import { useAppStore } from '../../../../store/AppStore';
 import { SEED_PLANS, SEED_RESTAURANTS, IMAGES } from '../../../../data/catalogue';
-import type { TiffinPlan } from '../../../../domain/types';
+import { TIFFIN_SLOTS, type TiffinPlan } from '../../../../domain/types';
 
 /**
  * Tiffin plans.
@@ -22,10 +22,9 @@ import type { TiffinPlan } from '../../../../domain/types';
 export default function TiffinPlansScreen() {
   const router = useRouter();
   const { t, language, currency } = useLanguage();
-  const { subscribeToPlan, activeSubscription, walletBalance } = useAppStore();
+  const { subscribeToPlan, activeSubscription, walletBalance, slot, setSlot } = useAppStore();
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [slot, setSlot] = useState<'lunch' | 'dinner'>('lunch');
   const [toast, setToast] = useState<string | null>(null);
 
   const label = (en: string, gu: string) => (language === 'gu' ? gu : en);
@@ -194,7 +193,7 @@ export default function TiffinPlansScreen() {
                       {t('screens.tiffin.deliverySlot')}
                     </AppText>
                     <View style={styles.slotRow}>
-                      {(['lunch', 'dinner'] as const).map((key) => {
+                      {TIFFIN_SLOTS.map((key) => {
                         const active = slot === key;
                         return (
                           <Pressable
@@ -205,7 +204,7 @@ export default function TiffinPlansScreen() {
                             accessibilityState={{ selected: active }}
                           >
                             <AppText variant="caption" color={active ? Theme.colors.surface : Theme.colors.textSecondary}>
-                              {key === 'lunch' ? t('screens.tiffin.slotLunch') : t('screens.tiffin.slotDinner')}
+                              {key === 'morning' ? t('screens.tiffin.slotMorning') : t('screens.tiffin.slotEvening')}
                             </AppText>
                           </Pressable>
                         );

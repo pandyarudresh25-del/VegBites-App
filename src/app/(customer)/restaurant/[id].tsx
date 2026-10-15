@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { View, StyleSheet, Pressable, Image, ScrollView, TextInput } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { ArrowLeft, Flame, Home as HomeIcon, Search, ShoppingBag, Star, Store, X } from 'lucide-react-native';
+import { ArrowLeft, Flame, Heart, Home as HomeIcon, Search, ShoppingBag, Star, Store, X } from 'lucide-react-native';
 import { AppText } from '../../../components/AppText';
 import { AppButton } from '../../../components/AppButton';
 import { AppScreen, EmptyState } from '../../../components/AppScreen';
@@ -24,7 +24,7 @@ export default function RestaurantDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { t, language, currency } = useLanguage();
-  const { cart, addItem, setQuantity } = useAppStore();
+  const { cart, addItem, setQuantity, favourites, toggleFavourite, reduceMotion } = useAppStore();
 
   const [query, setQuery] = useState('');
   const [toast, setToast] = useState<string | null>(null);
@@ -67,6 +67,8 @@ export default function RestaurantDetailScreen() {
     );
   }
 
+  const enter = (delay = 0) => (reduceMotion ? undefined : FadeInDown.delay(delay).duration(Theme.motion.base));
+
   const showToast = (message: string) => {
     setToast(message);
     setTimeout(() => setToast(null), 1800);
@@ -75,7 +77,7 @@ export default function RestaurantDetailScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: Theme.colors.background }}>
       {toast ? (
-        <Animated.View entering={FadeInDown.duration(Theme.motion.fast)} style={styles.toast}>
+        <Animated.View entering={enter()} style={styles.toast}>
           <AppText variant="bodySmall" color={Theme.colors.surface}>
             {toast}
           </AppText>
@@ -107,6 +109,26 @@ export default function RestaurantDetailScreen() {
               accessibilityLabel={t('flow.notFound.cta')}
             >
               <HomeIcon size={18} color={Theme.colors.surface} />
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                toggleFavourite(restaurant.id);
+                showToast(
+                  favourites.includes(restaurant.id)
+                    ? t('screens.saved.removed')
+                    : t('screens.saved.added', { name: label(restaurant.name, restaurant.nameGu) }),
+                );
+              }}
+              style={styles.heroSave}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={favourites.includes(restaurant.id) ? t('screens.saved.saved') : t('screens.saved.save')}
+            >
+              <Heart
+                size={18}
+                color={Theme.colors.surface}
+                fill={favourites.includes(restaurant.id) ? Theme.colors.surface : 'transparent'}
+              />
             </Pressable>
           </View>
 
@@ -171,7 +193,7 @@ export default function RestaurantDetailScreen() {
                   {items.map((item, index) => {
                     const line = lineFor(item.id);
                     return (
-                      <Animated.View key={item.id} entering={FadeInDown.delay(index * 30).duration(Theme.motion.fast)}>
+                      <Animated.View key={item.id} entering={enter(index * 30)}>
                         <View style={styles.itemRow}>
                           <View style={{ flex: 1, gap: 3 }}>
                             <View style={styles.itemTitleRow}>
@@ -256,7 +278,7 @@ export default function RestaurantDetailScreen() {
 
         {/* sticky cart bar — only when the cart has something */}
         {cartCount > 0 ? (
-          <Animated.View entering={FadeInDown.duration(Theme.motion.fast)} style={styles.cartBar}>
+          <Animated.View entering={enter()} style={styles.cartBar}>
             <View style={{ flex: 1 }}>
               <AppText variant="caption" color={Theme.colors.surface}>
                 {t('flow.cart.itemsCount', { count: cartCount })}
@@ -309,6 +331,17 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: Theme.spacing.md,
     right: Theme.spacing.md,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: withAlpha(palette.ink, 0.35),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroSave: {
+    position: 'absolute',
+    top: Theme.spacing.md,
+    right: 60,
     width: 38,
     height: 38,
     borderRadius: 19,

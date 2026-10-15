@@ -20,6 +20,7 @@ export const BillSummary: React.FC<{
   const allRows: { label: string; value: number; tone?: 'success' }[] = [
     { label: t('flow.common.subtotal'), value: bill.itemTotal },
     { label: t('flow.common.delivery'), value: bill.deliveryFee },
+    { label: t('flow.common.platformFee'), value: bill.platformFee },
     { label: t('flow.common.taxes'), value: bill.taxes },
     { label: t('flow.common.discount'), value: -bill.discount, tone: 'success' },
   ];

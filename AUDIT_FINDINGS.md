@@ -242,3 +242,113 @@ auditing the exported HTML rather than trusting the static checker.
 - Vendor and Delivery screens have palette/link fixes only; neither app has been
   rebuilt on the store yet. No Admin app, per instruction.
 - Reward redemption still needs a points ledger in the store (loyalty states this).
+
+---
+
+## 6. Master-prompt audit — line-by-line gap check and fixes (`87c0345`)
+
+The uploaded master prompt (`VEGBITES_CLAUDE_SONNET_MASTER_PROMPT_COLOR_LOCKED.md`) was read in
+full and every requirement was checked against the code, not against the file list. Findings and
+the fix for each are below. **Everything listed as fixed was implemented in this pass**; the
+"verified by" column says how it was actually checked.
+
+### 6.1 Locked palette and semantic state colours
+
+- **Found:** the theme had `success: '#287849'`, `border: withAlpha(muted, 0.22)`,
+  `error: palette.primaryDark`, `warning: palette.primary` — none of the specified state tokens,
+  and a hand-rolled translucent border instead of `#E9DED2`.
+- **Fix:** `src/theme/colors.ts` now exports a `states` group — `border #E9DED2`, `success #2F8A57`,
+  `warning #D99A26`, `error #D94841`, `info #3978D4`, `disabled #C8BFB4` — and the semantic tokens
+  point at it (`errorSoft`, `warningSoft`, `infoSoft`, `disabled` added). Re-exported from
+  `src/theme/index.ts`. The approved list is documented in the file header.
+- **Verified by:** `grep -rn "#[0-9A-Fa-f]\{3,8\}|rgba(" src --include=*.ts(x) | grep -v src/theme`
+  returns only order IDs (`#1234`), i.e. **no colour literal survives outside `src/theme/`**.
+
+### 6.2 Payment methods
+
+- **Found:** 3 methods (`cod, upi, card`).
+- **Fix:** `PaymentMethod` is now 7 values — `cod, upi, gpay, phonepe, netbanking, card, wallet` —
+  each with an icon, a hint line and an honest "demo: no money moves" note on `/payments`.
+
+### 6.3 Tiffin timings and plans
+
+- **Found:** slots were labelled Lunch/Dinner, and the plan set had no 15-day option.
+- **Fix:** `TiffinSlot` + `SLOT_WINDOW` = Morning **05:00–10:00 AM**, Evening **02:00–05:00 PM**,
+  used by the tiffin hub, vendor page, plans page and the order-detail screen (a placed order
+  carries its slot). Plans: 7 Days ₹699 · 15 Days ₹1499 · Monthly ₹2799 · Jain Monthly ₹2999.
+
+### 6.4 LIVE TRACKING
+
+- **Found:** the screen was titled LIVE TRACKING and had a timeline, but it walked the seven
+  internal order statuses, not the six required stages.
+- **Fix:** `TRACKING_STAGES` (pending, accepted, preparing, ready, outForDelivery, delivered) with
+  `STAGE_OF_STATUS` rolling the internal seven onto them, `STAGE_KEY` for labels. The tracking
+  timeline, its progress bar and its stage notes now render the six stages with real timestamps,
+  and a delivery-OTP card shows the 4-digit handover code minted by `placeOrder`.
+
+### 6.5 Reels continuity
+
+- **Found:** likes/saves lived in `useState(SEED_REELS)`, so they reset on navigation; the comment
+  count was a non-interactive dead affordance; there was no share action.
+- **Fix:** `likedReels`, `savedReels`, `reelComments` are persisted store state with
+  `toggleReelLike` / `toggleReelSave` / `addReelComment`; a comments sheet shows seeded threads
+  (`SEED_REEL_COMMENTS`) plus the customer's own comments; share uses the native sheet on device
+  and the Web Share API with a clipboard fallback on web; the kitchen name links to the vendor and
+  "Order this" adds the dish then opens the kitchen, so a reel never dead-ends.
+
+### 6.6 Saved vendors
+
+- **Found:** `favourites` / `toggleFavourite` existed in the store but **no screen used them** — the
+  feature was unreachable.
+- **Fix:** a heart on the kitchen hero calls `toggleFavourite` (with a toast), and Profile gained a
+  "Saved kitchens" rail driven by that state, linking back to each kitchen.
+
+### 6.7 Reduced motion / animation system
+
+- **Found:** `reduceMotion` was in the store but nothing honoured it.
+- **Fix:** Settings gained a reduce-motion switch; the tracking pulse stops looping and
+  kitchen / setup / reels entrance animations skip their `FadeInDown` when it is on.
+
+### 6.8 Onboarding
+
+- **Found:** OTP dropped straight into `/home`; there was no address or nearby-kitchen step.
+- **Fix:** new `(auth)/setup` — pick a delivery area (four real Rajkot areas with pincodes), which
+  becomes the default address via `addAddress` + `selectAddress`, then the three nearest kitchens
+  by real `distanceKm`. It is skippable, and it prerenders to the guest state for direct visits.
+
+### 6.9 Order detail
+
+- **Found:** customers had no order-detail screen at all. The only `/order/[id]` route in the repo
+  belongs to the **vendor** app, so a customer link to it would open vendor chrome.
+- **Fix:** new `(customer)/orders/[id]` with the spec's actions — Track, Cancel (refund note),
+  Rate and Reorder — plus items, bill (incl. platform fee), timeline and handover OTP. Orders
+  cards link to it; a Details chip was added to each card.
+
+### 6.10 Smaller defects found by the audit
+
+- `cart.platformFee` existed in `en.ts` only, and `BillSummary` called `flow.common.platformFee`,
+  which did not exist → the new key was added under `flow.common` in both locales (the checker
+  caught this; it would have shipped a raw key).
+- Orders/order-detail strings (`flow.orders.reorder`, `flow.orderDetail.*`) moved into the right
+  namespaces — an earlier edit had left them as siblings of `flow.orders`, which is why
+  `check-i18n` failed at the start of this pass.
+- The preview server served a **directory** as a page. `/orders` answered `301 → /orders/` because
+  Expo writes both `orders.html` and an `orders/[id].html` directory. Fixed in
+  `scripts/preview-server.py` (a directory is now only a hit if it has an `index.html`).
+- `dist/` is excluded from workspace snapshots, so the live preview had silently been serving
+  nothing after a restore. Rebuilt (`173 pages`) and re-verified.
+
+### 6.11 Verification for this pass
+
+| check | result |
+|---|---|
+| `npx tsc --noEmit` | 0 errors |
+| `npx expo lint` | 0 errors, **11** warnings (was 22 at the start of the pass; the rest are Vendor/Delivery + root splash) |
+| `CI=1 npx expo export --platform web` | **173 pages**, exit 0 |
+| `node scripts/check-i18n.js` | **607 = 607 keys, 415 call sites, 0 unresolved** |
+| `node scripts/check-rendered.js` | **0 of 173** pages show a raw key |
+| HTTP sweep (`/`, `/home`, … `/setup`, `/orders/1234`, `/tracking/1234`, `/orders/1234`) | **35 / 35 → 200** |
+| prerendered deep links | `dist/restaurant/r1.html` renders the real kitchen + menu ("Shree Krishna Tiffin 4.8 … Gujarati Thali ₹140 ₹170") |
+
+**Not verified:** no browser automation exists here, so there is still no pixel-level QA and no
+click-through. Nothing in this document claims a visual check that did not happen.

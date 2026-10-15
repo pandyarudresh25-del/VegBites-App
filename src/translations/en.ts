@@ -1,5 +1,6 @@
 export const en = {
   welcome: {
+    otherRoles: 'Kitchen or delivery partner?',
     title: 'Fresh.\nHealthy.\nHomemade.',
     subtitle: 'Delivered to your door.',
     skip: 'Skip',
@@ -522,6 +523,17 @@ export const en = {
     slotLunch: 'Lunch \u00b7 12:00\u20131:30 pm',
   },
   screens: {
+    role: {
+      title: 'Which app do you need?',
+      subtitle: 'This only changes what you see first — you can switch any time.',
+      customer: 'Customer',
+      customerHint: 'Order tiffins and restaurant food',
+      vendor: 'Kitchen / Vendor',
+      vendorHint: 'Manage your menu, orders and earnings',
+      delivery: 'Delivery partner',
+      deliveryHint: 'Pick up and complete deliveries',
+      back: 'Back to start',
+    },
     setup: {
       title: 'Two quick things',
       whereHint: 'Tell us where to deliver and we will show the kitchens that reach you.',

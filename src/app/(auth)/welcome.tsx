@@ -49,6 +49,14 @@ export default function WelcomeScreen() {
             fullWidth={false}
             style={styles.nextButton}
           />
+          <TouchableOpacity
+            style={styles.skipButton}
+            onPress={() => router.push('/(auth)/role')}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+          >
+            <AppText variant="caption" color={Theme.colors.textMuted}>{t('welcome.otherRoles')}</AppText>
+          </TouchableOpacity>
         </Animated.View>
       </View>
     </SafeAreaView>

@@ -1,110 +1,100 @@
 import React from 'react';
-import { View, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import Animated, { FadeInDown } from 'react-native-reanimated';
+import { Bike, ChevronRight, Store, UserRound } from 'lucide-react-native';
 import { AppText } from '../../components/AppText';
+import { AppScrollScreen } from '../../components/AppScreen';
 import { Theme } from '../../theme';
-import { Bike, Store, UserRound } from 'lucide-react-native';
+import { useLanguage } from '../../context/LanguageContext';
+import { useAppStore } from '../../store/AppStore';
 
+/**
+ * Role picker: customer / kitchen / delivery partner.
+ *
+ * Rebuilt on the design system with full en+gu copy and reduce-motion support.
+ * There is deliberately no Admin option — VegBites ships without an Admin app.
+ */
 const ROLES = [
-  { id: 'customer', label: 'Customer', icon: UserRound },
-  { id: 'vendor', label: 'Vendor', icon: Store },
-  { id: 'delivery', label: 'Delivery Boy', icon: Bike },
-];
+  { id: 'customer', labelKey: 'screens.role.customer', hintKey: 'screens.role.customerHint', icon: UserRound },
+  { id: 'vendor', labelKey: 'screens.role.vendor', hintKey: 'screens.role.vendorHint', icon: Store },
+  { id: 'delivery', labelKey: 'screens.role.delivery', hintKey: 'screens.role.deliveryHint', icon: Bike },
+] as const;
 
 export default function RoleSelectionScreen() {
   const router = useRouter();
-  const handleRoleSelect = (roleId: string) => {
-    router.push({
-      pathname: '/(auth)/login',
-      params: { role: roleId }
-    });
-  };
+  const { t } = useLanguage();
+  const { reduceMotion } = useAppStore();
+
+  const enter = (delay: number) => (reduceMotion ? undefined : FadeInDown.delay(delay).duration(Theme.motion.base));
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        
-        <Animated.View entering={FadeInDown.duration(600).springify()} style={styles.header}>
-          <AppText variant="h1" style={styles.title} align="center">
-            Choose Your Role
-          </AppText>
-          <AppText variant="body" color={Theme.colors.textSecondary} align="center" style={styles.subtitle}>
-            Select how you want to continue
-          </AppText>
-        </Animated.View>
-
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.list}>
-          {ROLES.map((role, index) => {
-            const Icon = role.icon;
-            return (
-              <Animated.View key={role.id} entering={FadeInDown.delay(100 + index * 100).springify()}>
-              <TouchableOpacity 
-                style={styles.roleCard}
-                activeOpacity={0.8}
-                onPress={() => handleRoleSelect(role.id)}
-              >
-                <View style={styles.iconContainer}>
-                  <Icon size={24} color={Theme.colors.primary} />
-                </View>
-                <AppText variant="h3">{role.label}</AppText>
-              </TouchableOpacity>
-              </Animated.View>
-            );
-          })}
-        </ScrollView>
-
+    <AppScrollScreen>
+      <View style={styles.head}>
+        <AppText variant="h1" align="center">
+          {t('screens.role.title')}
+        </AppText>
+        <AppText variant="bodySmall" color={Theme.colors.textSecondary} align="center">
+          {t('screens.role.subtitle')}
+        </AppText>
       </View>
-    </SafeAreaView>
+
+      <View style={styles.list}>
+        {ROLES.map((role, index) => {
+          const Icon = role.icon;
+          return (
+            <Animated.View key={role.id} entering={enter(80 + index * 70)}>
+              <Pressable
+                style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+                onPress={() => router.push({ pathname: '/(auth)/login', params: { role: role.id } })}
+                accessibilityRole="button"
+              >
+                <View style={styles.iconWrap}>
+                  <Icon size={22} color={Theme.colors.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <AppText variant="h3">{t(role.labelKey)}</AppText>
+                  <AppText variant="caption" color={Theme.colors.textMuted}>
+                    {t(role.hintKey)}
+                  </AppText>
+                </View>
+                <ChevronRight size={20} color={Theme.colors.textMuted} />
+              </Pressable>
+            </Animated.View>
+          );
+        })}
+      </View>
+
+      <Pressable onPress={() => router.push('/(auth)/welcome')} hitSlop={8} accessibilityRole="button">
+        <AppText variant="caption" color={Theme.colors.textMuted} style={styles.back}>
+          {t('screens.role.back')}
+        </AppText>
+      </Pressable>
+    </AppScrollScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Theme.colors.background,
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: Theme.spacing.xl,
-    paddingTop: Theme.spacing.xxl * 2,
-  },
-  header: {
-    marginBottom: Theme.spacing.xxl,
-    alignItems: 'center',
-  },
-  title: {
-    marginBottom: Theme.spacing.sm,
-    fontSize: 24,
-  },
-  subtitle: {
-    marginBottom: Theme.spacing.md,
-  },
-  list: {
-    gap: Theme.spacing.lg,
-    paddingBottom: Theme.spacing.xxl,
-  },
-  roleCard: {
+  head: { gap: Theme.spacing.sm, marginTop: Theme.spacing.huge, marginBottom: Theme.spacing.xl },
+  list: { gap: Theme.spacing.md },
+  card: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Theme.colors.surface,
+    gap: Theme.spacing.md,
     padding: Theme.spacing.lg,
-    borderRadius: Theme.borderRadius.xl,
+    borderRadius: Theme.borderRadius.lg,
     borderWidth: 1,
     borderColor: Theme.colors.border,
-    shadowColor: Theme.colors.text,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.04,
-    shadowRadius: 10,
-    elevation: 2,
+    backgroundColor: Theme.colors.surface,
   },
-  iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: Theme.colors.surfaceSecondary,
-    justifyContent: 'center',
+  cardPressed: { opacity: 0.85 },
+  iconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: Theme.borderRadius.md,
+    backgroundColor: Theme.colors.primarySoft,
     alignItems: 'center',
-    marginRight: Theme.spacing.lg,
+    justifyContent: 'center',
   },
+  back: { textAlign: 'center', marginTop: Theme.spacing.xl },
 });

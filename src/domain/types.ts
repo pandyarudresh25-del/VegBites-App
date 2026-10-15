@@ -296,6 +296,17 @@ export type Review = {
   image?: number;
 };
 
+/** The partner's own progress on one delivery. */
+export type CourierStep = 'assigned' | 'reachedVendor' | 'received' | 'reachedCustomer' | 'delivered';
+
+/** A problem a delivery partner reported on the road. */
+export type DeliveryBreakdown = {
+  id: string;
+  orderId?: string;
+  reason: string;
+  at: number;
+};
+
 export type ReelComment = {
   id: string;
   author: string;
@@ -349,6 +360,32 @@ export const PRICING = {
   },
   walletAddRange: { min: 100, max: 5000 },
 } as const;
+
+/* ------------------------------------------------------------------ *
+ * Day maths — one implementation so no screen reaches for `Date.now()`
+ * during render (keeps the React compiler's purity rule happy).
+ * ------------------------------------------------------------------ */
+
+/** Midnight of the current local day, in ms since epoch. */
+export const startOfToday = (): number => {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
+};
+
+/** Midnight of the first day of the current local month, in ms. */
+export const startOfMonth = (): number => {
+  const d = new Date();
+  d.setDate(1);
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
+};
+
+/** `days` days ago, in ms since epoch. */
+export const daysAgo = (days: number): number => Date.now() - days * 24 * 60 * 60 * 1000;
+
+/** Flat payout a delivery partner earns per completed delivery. */
+export const PAYOUT_PER_DELIVERY = 35;
 
 export type CouponCode = keyof typeof PRICING.coupons;
 export const COUPON_CODES = Object.keys(PRICING.coupons) as CouponCode[];

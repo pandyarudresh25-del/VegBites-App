@@ -1,3 +1,4 @@
+import React from 'react';
 import { Stack } from 'expo-router';
 import { Theme } from '../theme';
 import { Platform, View } from 'react-native';
@@ -5,6 +6,8 @@ import { LanguageProvider } from '../context/LanguageContext';
 import { AppStoreProvider } from '../store/AppStore';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { ReducedMotionConfig, ReduceMotion } from 'react-native-reanimated';
+import { useAppStore } from '../store/AppStore';
 
 const GlobalWebStyles = () => {
   if (Platform.OS !== 'web') return null;
@@ -33,6 +36,16 @@ const GlobalWebStyles = () => {
 };
 
 /**
+ * Honours the customer's own reduced-motion switch for every Reanimated
+ * animation in the app (entrances, layout moves, springs) in one place, instead
+ * of asking each screen to remember. `System` defers to the OS setting.
+ */
+const MotionPreferences: React.FC = () => {
+  const { reduceMotion } = useAppStore();
+  return <ReducedMotionConfig mode={reduceMotion ? ReduceMotion.Always : ReduceMotion.System} />;
+};
+
+/**
  * Provider order matters: language first (the store's copy can be localized),
  * then the app store, both above the navigator so state survives navigation
  * between every route group.
@@ -43,6 +56,7 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <LanguageProvider>
           <AppStoreProvider>
+            <MotionPreferences />
             <View style={{ flex: 1, backgroundColor: Theme.colors.background }}>
               <GlobalWebStyles />
               <Stack
@@ -55,8 +69,8 @@ export default function RootLayout() {
                 <Stack.Screen name="index" options={{ animation: 'fade' }} />
                 <Stack.Screen name="(auth)" />
                 <Stack.Screen name="(customer)" />
-                <Stack.Screen name="(vendor)" />
-                <Stack.Screen name="(delivery)" />
+                <Stack.Screen name="vendor" />
+                <Stack.Screen name="delivery" />
               </Stack>
             </View>
           </AppStoreProvider>

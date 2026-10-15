@@ -19,6 +19,7 @@ import { AppScrollScreen, ScreenHeader } from '../../components/AppScreen';
 import { Theme } from '../../theme';
 import { useLanguage } from '../../context/LanguageContext';
 import { useAppStore } from '../../store/AppStore';
+import { successFeedback } from '../../lib/haptics';
 import type { PaymentMethod } from '../../domain/types';
 
 type Stage = 'idle' | 'processing' | 'failed';
@@ -93,6 +94,7 @@ export default function PaymentsScreen() {
     // the surrounding state machine stays identical.
     setTimeout(() => {
       const order = placeOrder(method);
+      successFeedback();
       setStage('idle');
       router.replace(`/order-confirmation?id=${order.id}`);
     }, 1400);

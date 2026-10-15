@@ -9,6 +9,7 @@ import { AppScrollScreen, EmptyState, ScreenHeader } from '../../components/AppS
 import { Theme } from '../../theme';
 import { useLanguage } from '../../context/LanguageContext';
 import { useAppStore } from '../../store/AppStore';
+import { tapFeedback } from '../../lib/haptics';
 import { SEED_ADDONS } from '../../data/catalogue';
 
 /**
@@ -36,6 +37,7 @@ export default function AddonsScreen() {
 
   const handleContinue = () => {
     chosen.forEach((item) => addItem(item));
+    tapFeedback();
     if (chosen.length > 0) {
       setToast(t('screens.tiffin.addonsAdded', { count: chosen.length }));
       setTimeout(() => router.push('/cart'), 600);

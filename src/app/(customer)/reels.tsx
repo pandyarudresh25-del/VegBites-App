@@ -19,6 +19,7 @@ import { AppScreen, EmptyState, ScreenHeader } from '../../components/AppScreen'
 import { Theme, palette, withAlpha } from '../../theme';
 import { useLanguage } from '../../context/LanguageContext';
 import { useAppStore } from '../../store/AppStore';
+import { tapFeedback } from '../../lib/haptics';
 import { SEED_MENU, SEED_REEL_COMMENTS, SEED_REELS } from '../../data/catalogue';
 
 /**
@@ -57,6 +58,7 @@ export default function ReelsScreen() {
     const item = reel?.itemId ? SEED_MENU.find((m) => m.id === reel.itemId) : undefined;
     if (!item) return;
     addItem(item);
+    tapFeedback();
     showToast(t('screens.restaurants.added', { name: label(item.name, item.nameGu) }));
     setTimeout(() => router.push(`/restaurant/${item.restaurantId}` as never), 700);
   };

@@ -311,5 +311,9 @@ const styles = StyleSheet.create({
  * (Exported routes without params cannot be rendered by a static host.)
  */
 export async function generateStaticParams(): Promise<Record<string, string>[]> {
-  return SEED_RESTAURANTS.map((restaurant) => ({ id: restaurant.id }));
+  // Only vendors with a published thali: the builder needs a real menu item, and
+  // pre-rendering an id it cannot resolve would ship a not-found page.
+  return SEED_RESTAURANTS.filter((restaurant) =>
+    SEED_MENU.some((item) => item.restaurantId === restaurant.id),
+  ).map((restaurant) => ({ id: restaurant.id }));
 }

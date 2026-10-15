@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { View, StyleSheet, Pressable, Image, ScrollView, TextInput } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { ArrowLeft, Flame, Heart, Home as HomeIcon, Search, ShoppingBag, Star, Store, X } from 'lucide-react-native';
+import { AlertCircle, ArrowLeft, Flame, Heart, Home as HomeIcon, Search, ShoppingBag, Star, Store, X } from 'lucide-react-native';
 import { AppText } from '../../../components/AppText';
 import { AppButton } from '../../../components/AppButton';
 import { AppScreen, EmptyState } from '../../../components/AppScreen';
@@ -10,6 +10,7 @@ import { QuantityStepper } from '../../../components/QuantityStepper';
 import { Theme, palette, withAlpha } from '../../../theme';
 import { useLanguage } from '../../../context/LanguageContext';
 import { useAppStore } from '../../../store/AppStore';
+import { tapFeedback } from '../../../lib/haptics';
 import { SEED_MENU, SEED_RESTAURANTS } from '../../../data/catalogue';
 import type { MenuItem } from '../../../domain/types';
 
@@ -155,6 +156,15 @@ export default function RestaurantDetailScreen() {
               {t('screens.restaurants.costForTwo', { amount: currency(restaurant.costForTwo) })}
             </AppText>
 
+            {!restaurant.isOpen ? (
+              <View style={styles.closedStrip}>
+                <AlertCircle size={14} color={Theme.colors.warning} />
+                <AppText variant="caption" color={Theme.colors.warning}>
+                  {t('restaurants.closed')} — {t('screens.restaurants.noMenuHint')}
+                </AppText>
+              </View>
+            ) : null}
+
             {restaurant.offerText ? (
               <View style={styles.offerStrip}>
                 <AppText variant="caption" color={Theme.colors.success}>
@@ -184,7 +194,7 @@ export default function RestaurantDetailScreen() {
 
             {categories.length === 0 ? (
               <AppText variant="bodySmall" align="center" style={{ paddingVertical: Theme.spacing.xl }}>
-                {t('screens.restaurants.noResultsHint')}
+                {query ? t('screens.restaurants.noResultsHint') : t('screens.restaurants.noMenuHint')}
               </AppText>
             ) : (
               categories.map(([category, items]) => (
@@ -254,6 +264,7 @@ export default function RestaurantDetailScreen() {
                               <Pressable
                                 onPress={() => {
                                   addItem(item);
+                                  tapFeedback();
                                   showToast(t('screens.restaurants.added', { name: label(item.name, item.nameGu) }));
                                 }}
                                 style={styles.addButton}
@@ -337,6 +348,15 @@ const styles = StyleSheet.create({
     backgroundColor: withAlpha(palette.ink, 0.35),
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  closedStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Theme.spacing.sm,
+    paddingVertical: Theme.spacing.sm,
+    paddingHorizontal: Theme.spacing.md,
+    borderRadius: Theme.borderRadius.md,
+    backgroundColor: Theme.colors.warningSoft,
   },
   heroSave: {
     position: 'absolute',

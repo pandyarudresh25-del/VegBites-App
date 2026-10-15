@@ -32,6 +32,8 @@ import {
   TiffinSlot,
   Courier,
   MenuItem,
+  DeliveryBreakdown,
+  CourierStep,
   Order,
   OrderStatus,
   PaymentMethod,
@@ -42,7 +44,7 @@ import {
   WalletTxn,
   computeBill,
 } from '../domain/types';
-import { SEED_ADDRESSES } from '../data/catalogue';
+import { SEED_ADDRESSES, SEED_MENU } from '../data/catalogue';
 
 const STORAGE_KEY = '@vegbites/state/v1';
 
@@ -77,14 +79,114 @@ type PersistedState = {
   savedReels: string[];
   /** Customer-written reel comments, keyed by reel id. */
   reelComments: Record<string, ReelComment[]>;
+  /** Which kitchen the vendor app is signed in as. */
+  vendorRestaurantId: string;
+  /** Dishes the kitchen added on top of the catalogue. */
+  customItems: MenuItem[];
+  /** Price edits made by the kitchen, keyed by item id. */
+  priceOverrides: Record<string, number>;
+  /** Catalogue dishes this kitchen has taken off the menu. */
+  removedItemIds: string[];
+  /** Breakdowns a delivery partner has reported. */
+  breakdowns: DeliveryBreakdown[];
+  /** Partner progress per order. */
+  courierSteps: Record<string, CourierStep>;
 };
+
+
+const COURIERS: Courier[] = [
+  { name: 'Ravi Solanki', phone: '9900112233', rating: 4.9, vehicle: 'Bike', plate: 'GJ-03 KL 4471' },
+  { name: 'Mehul Chauhan', phone: '9900445566', rating: 4.8, vehicle: 'Scooter', plate: 'GJ-03 MN 2210' },
+  { name: 'Kiran Bhatt', phone: '9900778899', rating: 4.7, vehicle: 'Bike', plate: 'GJ-03 PQ 7788' },
+];
+
+/**
+ * Demo history for the seeded kitchen (r1, Shree Krishna Tiffin).
+ *
+ * The vendor app is a real vendor's view of real orders, so it needs orders to
+ * show. These are ordinary orders in the same shape `placeOrder` produces — one
+ * still on the road, one delivered, one cancelled — so every vendor screen and
+ * every customer order state is demonstrable on first launch. A fresh install
+ * still starts from empty for anything the customer creates themselves.
+ */
+const hoursAgo = (h: number) => Date.now() - h * 60 * 60 * 1000;
+
+const SEED_ORDERS: Order[] = [
+  {
+    id: 'VB-4821',
+    createdAt: hoursAgo(1.2),
+    status: 'out_for_delivery',
+    timeline: {
+      placed: hoursAgo(1.2),
+      confirmed: hoursAgo(1.15),
+      preparing: hoursAgo(1.0),
+      packed: hoursAgo(0.6),
+      picked_up: hoursAgo(0.45),
+      out_for_delivery: hoursAgo(0.4),
+    },
+    restaurantId: 'r1',
+    restaurantName: 'Shree Krishna Tiffin',
+    restaurantNameGu: 'શ્રી કૃષ્ણ ટિફિન',
+    lines: [
+      { id: 'l1', name: 'Gujarati Thali', nameGu: 'ગુજરાતી થાળી', unitPrice: 140, quantity: 2 },
+      { id: 'l2', name: 'Buttermilk', nameGu: 'છાશ', unitPrice: 25, quantity: 2 },
+    ],
+    bill: computeBill(330, undefined),
+    paymentMethod: 'upi',
+    address: SEED_ADDRESSES[0],
+    courier: COURIERS[0],
+    etaMins: 12,
+    deliveryOtp: '4821',
+    slot: 'evening',
+  },
+  {
+    id: 'VB-4790',
+    createdAt: hoursAgo(26),
+    status: 'delivered',
+    timeline: {
+      placed: hoursAgo(26),
+      confirmed: hoursAgo(25.9),
+      preparing: hoursAgo(25.7),
+      packed: hoursAgo(25.3),
+      picked_up: hoursAgo(25.1),
+      out_for_delivery: hoursAgo(25),
+      delivered: hoursAgo(24.6),
+    },
+    restaurantId: 'r1',
+    restaurantName: 'Shree Krishna Tiffin',
+    restaurantNameGu: 'શ્રી કૃષ્ણ ટિફિન',
+    lines: [{ id: 'l3', name: 'Mini Gujarati Thali', nameGu: 'મિની ગુજરાતી થાળી', unitPrice: 99, quantity: 1 }],
+    bill: computeBill(99, 'FIRST50'),
+    paymentMethod: 'cod',
+    address: SEED_ADDRESSES[0],
+    courier: COURIERS[1],
+    etaMins: 25,
+    deliveryOtp: '4790',
+    instructions: 'Less spicy, please.',
+  },
+  {
+    id: 'VB-4762',
+    createdAt: hoursAgo(50),
+    status: 'cancelled',
+    timeline: { placed: hoursAgo(50), confirmed: hoursAgo(49.9), cancelled: hoursAgo(49.7) },
+    restaurantId: 'r1',
+    restaurantName: 'Shree Krishna Tiffin',
+    restaurantNameGu: 'શ્રી કૃષ્ણ ટિફિન',
+    lines: [{ id: 'l4', name: 'Undhiyu (seasonal)', nameGu: 'ઊંધિયું', unitPrice: 160, quantity: 1 }],
+    bill: computeBill(160, undefined),
+    paymentMethod: 'wallet',
+    address: SEED_ADDRESSES[0],
+    etaMins: 30,
+    deliveryOtp: '4762',
+  },
+];
 
 const initialState: PersistedState = {
   user: null,
   addresses: SEED_ADDRESSES,
   cart: [],
   couponCode: undefined,
-  orders: [],
+  orders: SEED_ORDERS,
   subscriptions: [],
   walletBalance: 250,
   walletTxns: [
@@ -109,13 +211,14 @@ const initialState: PersistedState = {
   likedReels: [],
   savedReels: [],
   reelComments: {},
+  vendorRestaurantId: 'r1',
+  customItems: [],
+  priceOverrides: {},
+  removedItemIds: [],
+  breakdowns: [],
+  courierSteps: {},
 };
 
-const COURIERS: Courier[] = [
-  { name: 'Ravi Solanki', phone: '9900112233', rating: 4.9, vehicle: 'Bike', plate: 'GJ-03 KL 4471' },
-  { name: 'Mehul Chauhan', phone: '9900445566', rating: 4.8, vehicle: 'Scooter', plate: 'GJ-03 MN 2210' },
-  { name: 'Kiran Bhatt', phone: '9900778899', rating: 4.7, vehicle: 'Bike', plate: 'GJ-03 PQ 7788' },
-];
 
 const newId = (prefix: string) => `${prefix}-${Math.random().toString(36).slice(2, 9)}`;
 
@@ -196,6 +299,41 @@ type AppStoreValue = {
   /** Appends the customer's own comment to a reel and returns it. */
   addReelComment: (reelId: string, text: string) => ReelComment;
 
+  // --- vendor ---
+  vendorRestaurantId: string;
+  setVendorRestaurant: (restaurantId: string) => void;
+  /** The kitchen moves an order along its own fulfilment flow. */
+  setOrderStatus: (orderId: string, status: OrderStatus) => void;
+  /** Orders belonging to the signed-in kitchen, newest first. */
+  vendorOrders: Order[];
+  customItems: MenuItem[];
+  /** Adds a dish to the kitchen's own menu and returns it. */
+  addMenuItem: (input: { name: string; nameGu: string; price: number; category: string; description?: string }) => MenuItem;
+  priceOverrides: Record<string, number>;
+  setItemPrice: (itemId: string, price: number) => void;
+  removedItemIds: string[];
+  /** Takes a dish off the menu (custom dishes are deleted outright). */
+  removeMenuItem: (itemId: string) => void;
+  restoreMenuItem: (itemId: string) => void;
+  /** Catalogue items + kitchen additions, with edits, sold-out and removal applied. */
+  vendorMenu: MenuItem[];
+  /** Every dish this kitchen has ever listed, menu or not — for "put it back". */
+  allVendorItems: MenuItem[];
+
+  // --- delivery partner ---
+  /** Orders out for delivery, plus delivered ones for the ledger. */
+  deliveryQueue: Order[];
+  /** Claims an order for the signed-in partner. */
+  acceptDelivery: (orderId: string) => void;
+  breakdowns: DeliveryBreakdown[];
+  /** Reports a breakdown and returns the logged entry. */
+  reportBreakdown: (input: { orderId?: string; reason: string }) => DeliveryBreakdown;
+  courierSteps: Record<string, CourierStep>;
+  /** Advance the partner's own step; the order status follows it. */
+  setCourierStep: (orderId: string, step: CourierStep) => void;
+  /** Orders this partner has completed, newest first. */
+  completedDeliveries: Order[];
+
   // --- support ---
   tickets: SupportTicket[];
   /** Creates a support ticket and returns its reference id. */
@@ -248,6 +386,44 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
   }, [state]);
 
   // ---------------------------------------------------------------- helpers
+  // ------------------------------------------------------------- vendor views
+  /** Orders for the signed-in kitchen, newest first. */
+  const vendorOrders = useMemo(
+    () => state.orders.filter((order) => order.restaurantId === state.vendorRestaurantId).sort((a, b) => b.createdAt - a.createdAt),
+    [state.orders, state.vendorRestaurantId],
+  );
+
+  /** Catalogue dishes for this kitchen + its own additions, with edits applied. */
+  const allVendorItems = useMemo(() => {
+    const own = SEED_MENU.filter((item) => item.restaurantId === state.vendorRestaurantId);
+    const extra = state.customItems.filter((item) => item.restaurantId === state.vendorRestaurantId);
+    return [...own, ...extra].map((item) => ({
+      ...item,
+      price: state.priceOverrides[item.id] ?? item.price,
+      available: !state.soldOutItemIds.includes(item.id),
+    }));
+  }, [state.vendorRestaurantId, state.customItems, state.priceOverrides, state.soldOutItemIds]);
+
+  const vendorMenu = useMemo(
+    () => allVendorItems.filter((item) => !state.removedItemIds.includes(item.id)),
+    [allVendorItems, state.removedItemIds],
+  );
+
+  /** Deliveries this partner has finished — the earnings ledger. */
+  const completedDeliveries = useMemo(
+    () => state.orders.filter((order) => order.status === 'delivered').sort((a, b) => b.createdAt - a.createdAt),
+    [state.orders],
+  );
+
+  /** Deliveries a partner can take or track: everything already on the road. */
+  const deliveryQueue = useMemo(
+    () =>
+      state.orders
+        .filter((order) => order.status === 'packed' || order.status === 'picked_up' || order.status === 'out_for_delivery' || order.status === 'delivered')
+        .sort((a, b) => b.createdAt - a.createdAt),
+    [state.orders],
+  );
+
   const patch = useCallback((updater: (prev: PersistedState) => PersistedState) => {
     setState((prev) => updater(prev));
   }, []);
@@ -692,6 +868,128 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     [patch],
   );
 
+  // ------------------------------------------------------------------- vendor
+  const setVendorRestaurant = useCallback(
+    (restaurantId: string) => patch((prev) => ({ ...prev, vendorRestaurantId: restaurantId })),
+    [patch],
+  );
+
+  const setOrderStatus = useCallback(
+    (orderId: string, status: OrderStatus) =>
+      patch((prev) => ({
+        ...prev,
+        orders: prev.orders.map((order) =>
+          order.id === orderId
+            ? { ...order, status, timeline: { ...order.timeline, [status]: order.timeline[status] ?? Date.now() } }
+            : order,
+        ),
+      })),
+    [patch],
+  );
+
+  const addMenuItem = useCallback(
+    (input: { name: string; nameGu: string; price: number; category: string; description?: string }) => {
+      const restaurantId = state.vendorRestaurantId;
+      const item: MenuItem = {
+        id: newId('vi'),
+        restaurantId,
+        name: input.name,
+        nameGu: input.nameGu,
+        description: input.description ?? '',
+        descriptionGu: input.description ?? '',
+        price: input.price,
+        diet: ['veg'],
+        category: input.category,
+        available: true,
+      };
+      patch((prev) => ({ ...prev, customItems: [item, ...prev.customItems] }));
+      return item;
+    },
+    [patch, state.vendorRestaurantId],
+  );
+
+  const setItemPrice = useCallback(
+    (itemId: string, price: number) =>
+      patch((prev) => ({ ...prev, priceOverrides: { ...prev.priceOverrides, [itemId]: price } })),
+    [patch],
+  );
+
+  const removeMenuItem = useCallback(
+    (itemId: string) =>
+      patch((prev) => ({
+        ...prev,
+        customItems: prev.customItems.filter((item) => item.id !== itemId),
+        removedItemIds: prev.customItems.some((item) => item.id === itemId)
+          ? prev.removedItemIds
+          : [...prev.removedItemIds, itemId],
+      })),
+    [patch],
+  );
+
+  const restoreMenuItem = useCallback(
+    (itemId: string) => patch((prev) => ({ ...prev, removedItemIds: prev.removedItemIds.filter((id) => id !== itemId) })),
+    [patch],
+  );
+
+  const acceptDelivery = useCallback(
+    (orderId: string) =>
+      patch((prev) => ({
+        ...prev,
+        orders: prev.orders.map((order) =>
+          order.id === orderId
+            ? {
+                ...order,
+                courier: order.courier ?? COURIERS[Math.floor(Math.random() * COURIERS.length)],
+                status: order.status === 'placed' || order.status === 'confirmed' ? 'packed' : order.status,
+              }
+            : order,
+        ),
+      })),
+    [patch],
+  );
+
+  /** The order status each partner step implies, so both apps agree. */
+  const STEP_STATUS: Record<CourierStep, OrderStatus | null> = {
+    assigned: 'packed',
+    reachedVendor: null,
+    received: 'picked_up',
+    reachedCustomer: 'out_for_delivery',
+    delivered: 'delivered',
+  };
+
+  const setCourierStep = useCallback(
+    (orderId: string, step: CourierStep) =>
+      patch((prev) => {
+        const nextStatus = STEP_STATUS[step];
+        return {
+          ...prev,
+          courierSteps: { ...prev.courierSteps, [orderId]: step },
+          orders: nextStatus
+            ? prev.orders.map((order) =>
+                order.id === orderId
+                  ? { ...order, status: nextStatus, timeline: { ...order.timeline, [nextStatus]: order.timeline[nextStatus] ?? Date.now() } }
+                  : order,
+              )
+            : prev.orders,
+        };
+      }),
+    [patch],
+  );
+
+  const reportBreakdown = useCallback(
+    (input: { orderId?: string; reason: string }) => {
+      const entry: DeliveryBreakdown = {
+        id: newId('bd'),
+        orderId: input.orderId,
+        reason: input.reason.trim(),
+        at: Date.now(),
+      };
+      patch((prev) => ({ ...prev, breakdowns: [entry, ...prev.breakdowns] }));
+      return entry;
+    },
+    [patch],
+  );
+
   const addReelComment = useCallback(
     (reelId: string, text: string) => {
       const comment: ReelComment = {
@@ -847,6 +1145,28 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       reelComments: state.reelComments,
       addReelComment,
 
+      vendorRestaurantId: state.vendorRestaurantId,
+      setVendorRestaurant,
+      setOrderStatus,
+      vendorOrders,
+      customItems: state.customItems,
+      addMenuItem,
+      priceOverrides: state.priceOverrides,
+      setItemPrice,
+      removedItemIds: state.removedItemIds,
+      removeMenuItem,
+      restoreMenuItem,
+      vendorMenu,
+      allVendorItems,
+
+      deliveryQueue,
+      acceptDelivery,
+      breakdowns: state.breakdowns,
+      reportBreakdown,
+      courierSteps: state.courierSteps,
+      setCourierStep,
+      completedDeliveries,
+
       tickets: state.tickets,
       submitTicket,
       chat: state.chat,
@@ -858,6 +1178,9 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     placeOrder, advanceOrder, cancelOrder, reorder, subscribeToPlan, setSubscriptionStatus,
     skipNextDelivery, addMoney, submitReview, submitTicket, sendChatMessage,
     toggleReelLike, toggleReelSave, addReelComment, toggleFavourite, setSlot, setInstructions,
+    setVendorRestaurant, setOrderStatus, addMenuItem, setItemPrice, vendorOrders, vendorMenu,
+    removeMenuItem, restoreMenuItem, allVendorItems, acceptDelivery, reportBreakdown, deliveryQueue,
+    setCourierStep, completedDeliveries,
     toggleSoldOut, setCourierOnline, setReduceMotion,
   ]);
 

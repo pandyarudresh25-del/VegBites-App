@@ -9,6 +9,8 @@ import {
   CreditCard,
   Globe,
   HelpCircle,
+  SlidersHorizontal,
+  Gift,
   Info,
   MapPin,
   Pencil,
@@ -57,7 +59,9 @@ export default function ProfileScreen() {
     { icon: MapPin, label: t('profile.savedAddresses'), onPress: () => router.push('/address') },
     { icon: CreditCard, label: t('flow.checkout.paymentMethod'), onPress: () => router.push('/payments') },
     { icon: Bell, label: t('profile.notifications'), onPress: () => router.push('/notifications') },
+    { icon: Gift, label: t('account.loyalty'), onPress: () => router.push('/loyalty') },
     { icon: HelpCircle, label: t('profile.helpSupport'), onPress: () => router.push('/support') },
+    { icon: SlidersHorizontal, label: t('account.settings'), onPress: () => router.push('/settings') },
   ];
 
   const handleSave = () => {
